@@ -11,7 +11,8 @@ It receives events, normalizes payloads, renders messages via templates, and del
 - `?token=<secret>`
 - `X-Gitlab-Token: <secret>`
 - `X-Hub-Signature-256` / `X-Hub-Signature` (GitHub HMAC signature)
-- Adapters: `generic-json`, `generic-text`, and `github` (auto-detected via `X-GitHub-Event`)
+- `X-Gitea-Signature` / `X-Forgejo-Signature` (Gitea/Forgejo HMAC signature)
+- Adapters: `generic-json`, `generic-text`, `github` (auto-detected via `X-GitHub-Event`), and `forgejo`/`gitea` (auto-detected via `X-Forgejo-Event` or `X-Gitea-Event`)
 - UI (HTMX + server-rendered templates) for ingresses, routes, templates, and event logs
 - Optional per-ingress default template (useful when sharing routes across sources)
 - Template preview and test-send from UI
@@ -202,3 +203,7 @@ This project is licensed under **AGPL-3.0-only**.
 
 - Full text: `LICENSE`
 - Attribution notice: `NOTICE`
+
+## Adapter Documentation
+
+- `docs/adapters/README.md`

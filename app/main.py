@@ -19,7 +19,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.adapters import generic_json, generic_text, github
+from app.adapters import forgejo, generic_json, generic_text, github
 from app.adapters.types import NormalizedEvent
 from app.config import settings
 from app.db import SessionLocal, get_session
@@ -300,6 +300,19 @@ def _verify_hmac_signature(
     return hmac.compare_digest(expected, digest)
 
 
+def _normalize_plain_signature(header_value: str | None) -> str | None:
+    if not header_value:
+        return None
+    value = header_value.strip()
+    if not value:
+        return None
+    if "=" in value:
+        algo, digest = value.split("=", 1)
+        if algo.strip().lower() == "sha256" and digest.strip():
+            return digest.strip()
+    return value
+
+
 def _authorize_ingress_request(
     ingress: Ingress, request: Request, raw_body: bytes
 ) -> tuple[bool, bool]:
@@ -341,6 +354,20 @@ def _authorize_ingress_request(
         ):
             any_auth_valid = True
 
+    gitea_sig = _normalize_plain_signature(
+        request.headers.get("X-Gitea-Signature")
+    )
+    forgejo_sig = _normalize_plain_signature(
+        request.headers.get("X-Forgejo-Signature")
+    )
+    for signature in (gitea_sig, forgejo_sig):
+        if signature:
+            any_auth_present = True
+            if _verify_hmac_signature(
+                raw_body, ingress.secret_value, signature, "sha256"
+            ):
+                any_auth_valid = True
+
     return any_auth_present, any_auth_valid
 
 
@@ -377,7 +404,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
             status_code=401,
             detail=(
                 "Missing authentication. Provide Authorization bearer token, ?token, "
-                "X-Gitlab-Token, or GitHub signature header."
+                "X-Gitlab-Token, or GitHub/Gitea/Forgejo signature header."
             ),
         )
     if not auth_valid:
@@ -387,8 +414,13 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     try:
         if "application/json" in content_type:
             payload = json.loads(raw_body)
+            forgejo_event = request.headers.get("X-Forgejo-Event")
+            gitea_event = request.headers.get("X-Gitea-Event")
             github_event = request.headers.get("X-GitHub-Event")
-            if github_event:
+            if forgejo_event or gitea_event:
+                source = "forgejo" if forgejo_event else "gitea"
+                event = forgejo.adapt(payload, forgejo_event or gitea_event, source=source)
+            elif github_event:
                 event = github.adapt(payload, github_event)
             else:
                 event = generic_json.adapt(payload)
@@ -584,6 +616,7 @@ async def ui_ingresses_edit(
         "ingress_edit.html",
         {
             "request": request,
+            "base_url": settings.base_url.rstrip("/") + "/",
             "ingress": ingress,
             "routes": routes,
             "templates": template_list,

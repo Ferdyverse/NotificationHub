@@ -1,4 +1,4 @@
-from app.adapters import generic_json, generic_text, github
+from app.adapters import forgejo, generic_json, generic_text, github
 
 
 def test_generic_json_adapter():
@@ -52,3 +52,19 @@ def test_github_adapter_fallback_event():
     assert event.event == "github.discussion"
     assert event.severity == "info"
     assert "GitHub discussion" in event.title
+
+
+def test_forgejo_push_adapter():
+    payload = {
+        "ref": "refs/heads/main",
+        "compare_url": "https://forgejo.example/compare/abc...def",
+        "commits": [{"id": "abc"}, {"id": "def"}],
+        "repository": {"full_name": "Ferdyverse/NotificationHub"},
+        "pusher": {"login": "Ferdyverse"},
+    }
+    event = forgejo.adapt(payload, "push", source="forgejo")
+    assert event.source == "forgejo"
+    assert event.event == "forgejo.push"
+    assert event.severity == "info"
+    assert "Push to main" in event.title
+    assert "Commits: 2" in event.message

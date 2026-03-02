@@ -79,3 +79,29 @@ def test_auth_github_signature_fails_without_secret_value():
     )
     assert present is True
     assert valid is False
+
+
+def test_auth_gitea_signature_sha256():
+    secret = "giteasecret"
+    body = b'{"hello":"gitea"}'
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    present, valid = _authorize_ingress_request(
+        _ingress(secret),
+        _req(headers={"X-Gitea-Signature": digest}),
+        body,
+    )
+    assert present is True
+    assert valid is True
+
+
+def test_auth_forgejo_signature_sha256_with_prefix():
+    secret = "forgejosecret"
+    body = b'{"hello":"forgejo"}'
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    present, valid = _authorize_ingress_request(
+        _ingress(secret),
+        _req(headers={"X-Forgejo-Signature": f"sha256={digest}"}),
+        body,
+    )
+    assert present is True
+    assert valid is True
