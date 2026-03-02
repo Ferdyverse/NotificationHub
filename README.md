@@ -74,6 +74,35 @@ Or use the provided Compose file:
 docker compose -f compose.yml up -d
 ```
 
+## Backup and Restore
+
+NotificationHub includes a built-in backup tool for SQLite databases:
+
+```bash
+python -m app.tools.backup --help
+```
+
+Create a backup archive:
+
+```bash
+python -m app.tools.backup create --output backups/notificationhub-prod.tar.gz
+```
+
+Restore a backup archive:
+
+```bash
+python -m app.tools.backup restore --input backups/notificationhub-prod.tar.gz --force
+```
+
+Production with Docker Compose (example):
+
+```bash
+docker compose exec formatter python -m app.tools.backup create --output /data/backup/notificationhub-prod.tar.gz
+```
+
+Then copy the archive from your production host to your test PC and restore it there.
+Before restoring, stop the app/container that currently uses the target SQLite file.
+
 ## Webhook Usage
 
 JSON example:
