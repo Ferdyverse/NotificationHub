@@ -54,12 +54,12 @@
   <p class="text-xs text-slate-500 mb-2">Replace TOKEN with the ingress secret shown when created or after rotation.</p>
   <div class="space-y-2 text-xs">
     <div class="text-slate-400">JSON payload:</div>
-    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ request.base_url }}ingest/{{ ingress.slug }} \
+    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ base_url }}ingest/{{ ingress.slug }} \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"source":"generic","event":"demo.test","severity":"info","title":"Hello","message":"JSON payload"}'</pre>
     <div class="text-slate-400">Text payload:</div>
-    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ request.base_url }}ingest/{{ ingress.slug }} \
+    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ base_url }}ingest/{{ ingress.slug }} \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: text/plain" \
   --data "Plain text message"</pre>
