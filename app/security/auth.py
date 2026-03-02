@@ -16,7 +16,9 @@ def verify_secret(secret: str, secret_hash: str) -> bool:
     return pwd_context.verify(secret, secret_hash)
 
 
-def require_ui_basic_auth(credentials: HTTPBasicCredentials | None = Depends(http_basic)):
+def require_ui_basic_auth(
+    credentials: HTTPBasicCredentials | None = Depends(http_basic),
+):
     if settings.ui_basic_auth_user is None or settings.ui_basic_auth_pass is None:
         return
 

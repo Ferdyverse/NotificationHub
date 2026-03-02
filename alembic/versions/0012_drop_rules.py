@@ -5,6 +5,7 @@ Revises: 0011_ingress_secret_value
 Create Date: 2026-03-02 00:00:00
 
 """
+
 from __future__ import annotations
 
 from alembic import op

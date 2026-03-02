@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-03-01 00:00:00
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -22,7 +23,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("apprise_target", sa.String(length=500), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column(
+            "is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
     op.create_table(
@@ -30,7 +33,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("body", sa.Text(), nullable=False),
-        sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "is_default", sa.Boolean(), nullable=False, server_default=sa.text("0")
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
     op.create_table(
@@ -39,7 +44,9 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("slug", sa.String(length=120), nullable=False),
         sa.Column("secret_hash", sa.String(length=255), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column(
+            "is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")
+        ),
         sa.Column("default_route_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["default_route_id"], ["routes.id"]),

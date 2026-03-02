@@ -236,10 +236,12 @@ def build_template_context(event: EventLog | NormalizedEvent) -> dict[str, Any]:
     }
 
 
-def render_discord_payload_json(template: Template, context: dict[str, Any]) -> str | None:
+def render_discord_payload_json(
+    template: Template, context: dict[str, Any], strict: bool = False
+) -> str | None:
     if not template.discord_embed_template:
         return None
-    rendered = render_template(template.discord_embed_template, context)
+    rendered = render_template(template.discord_embed_template, context, strict=strict)
     if not rendered.strip():
         return None
     return rendered
@@ -249,6 +251,26 @@ def resolve_template_id(ingress: Ingress, route: Route) -> int | None:
     if ingress.default_template_id:
         return ingress.default_template_id
     return route.template_id
+
+
+def render_notification_content(
+    template: Template,
+    context: dict[str, Any],
+    raw_payload: Any | None,
+    strict: bool = False,
+) -> tuple[str | None, str, str | None]:
+    rendered_body = render_template(template.body, context, strict=strict)
+    rendered_title = None
+    if template.title_template:
+        rendered_title = render_template(
+            template.title_template, context, strict=strict
+        )
+    if template.show_raw:
+        raw = format_raw_payload(raw_payload)
+        if raw:
+            rendered_body = f"{rendered_body}\n\n```\n{raw}\n```"
+    discord_payload_json = render_discord_payload_json(template, context, strict=strict)
+    return rendered_title, rendered_body, discord_payload_json
 
 
 def _extract_signature(header_value: str | None, expected_algo: str) -> str | None:
@@ -263,7 +285,9 @@ def _extract_signature(header_value: str | None, expected_algo: str) -> str | No
     return digest
 
 
-def _verify_hmac_signature(body: bytes, secret: str | None, digest: str, algorithm: str) -> bool:
+def _verify_hmac_signature(
+    body: bytes, secret: str | None, digest: str, algorithm: str
+) -> bool:
     if not secret:
         return False
     if algorithm == "sha256":
@@ -276,7 +300,9 @@ def _verify_hmac_signature(body: bytes, secret: str | None, digest: str, algorit
     return hmac.compare_digest(expected, digest)
 
 
-def _authorize_ingress_request(ingress: Ingress, request: Request, raw_body: bytes) -> tuple[bool, bool]:
+def _authorize_ingress_request(
+    ingress: Ingress, request: Request, raw_body: bytes
+) -> tuple[bool, bool]:
     any_auth_present = False
     any_auth_valid = False
 
@@ -297,16 +323,22 @@ def _authorize_ingress_request(ingress: Ingress, request: Request, raw_body: byt
         if verify_secret(gitlab_token, ingress.secret_hash):
             any_auth_valid = True
 
-    github_sig_256 = _extract_signature(request.headers.get("X-Hub-Signature-256"), "sha256")
+    github_sig_256 = _extract_signature(
+        request.headers.get("X-Hub-Signature-256"), "sha256"
+    )
     if github_sig_256:
         any_auth_present = True
-        if _verify_hmac_signature(raw_body, ingress.secret_value, github_sig_256, "sha256"):
+        if _verify_hmac_signature(
+            raw_body, ingress.secret_value, github_sig_256, "sha256"
+        ):
             any_auth_valid = True
 
     github_sig_sha1 = _extract_signature(request.headers.get("X-Hub-Signature"), "sha1")
     if github_sig_sha1:
         any_auth_present = True
-        if _verify_hmac_signature(raw_body, ingress.secret_value, github_sig_sha1, "sha1"):
+        if _verify_hmac_signature(
+            raw_body, ingress.secret_value, github_sig_sha1, "sha1"
+        ):
             any_auth_valid = True
 
     return any_auth_present, any_auth_valid
@@ -319,10 +351,13 @@ def enforce_event_log_limit(db: Session):
     total = db.scalar(select(func.count()).select_from(EventLog))
     if total and total > max_events:
         excess = total - max_events
-        rows = db.scalars(select(EventLog).order_by(EventLog.created_at).limit(excess)).all()
+        rows = db.scalars(
+            select(EventLog).order_by(EventLog.created_at).limit(excess)
+        ).all()
         for row in rows:
             db.delete(row)
         db.commit()
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -389,8 +424,6 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     routes_to_send = list(ingress.routes)
-    if ingress.default_route and ingress.default_route not in routes_to_send:
-        routes_to_send.append(ingress.default_route)
     routes_to_send = [r for r in routes_to_send if r and r.is_active]
     if not routes_to_send:
         db.add(build_event_log(ingress, event, "failed", "No active route"))
@@ -398,7 +431,12 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         enforce_event_log_limit(db)
         log_info("event_no_route", ingress_id=ingress.id, source=event.source)
         raise HTTPException(status_code=422, detail="No active route")
-    log_info("route_selected", ingress_id=ingress.id, via="fanout", routes=[r.id for r in routes_to_send])
+    log_info(
+        "route_selected",
+        ingress_id=ingress.id,
+        via="fanout",
+        routes=[r.id for r in routes_to_send],
+    )
 
     context = build_template_context(event)
     results = []
@@ -407,18 +445,15 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         template = db.get(Template, template_id) if template_id else None
         if template is None:
             template = load_default_template(db)
-        rendered = render_template(template.body, context)
-        rendered_title = None
-        if template.title_template:
-            rendered_title = render_template(template.title_template, context)
-        if template.show_raw:
-            raw = format_raw_payload(event.raw)
-            if raw:
-                rendered = f"{rendered}\n\n```\n{raw}\n```"
+        rendered_title, rendered, discord_payload_json = render_notification_content(
+            template, context, event.raw
+        )
         extra = {
-            "discord_payload_json": render_discord_payload_json(template, context),
+            "discord_payload_json": discord_payload_json,
         }
-        result = deliver(route.route_type, route.config, rendered_title or "", rendered, extra=extra)
+        result = deliver(
+            route.route_type, route.config, rendered_title or "", rendered, extra=extra
+        )
         if result.meta:
             maybe_persist_matrix_token(route, result.meta)
             db.add(route)
@@ -432,10 +467,14 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         error = None
     elif success_count == 0:
         status = "failed"
-        error = "; ".join([f"{route.id}:{res.error}" for route, res in results if res.error])
+        error = "; ".join(
+            [f"{route.id}:{res.error}" for route, res in results if res.error]
+        )
     else:
         status = "partial"
-        error = "; ".join([f"{route.id}:{res.error}" for route, res in results if res.error])
+        error = "; ".join(
+            [f"{route.id}:{res.error}" for route, res in results if res.error]
+        )
     db.add(build_event_log(ingress, event, status, error))
     db.commit()
     enforce_event_log_limit(db)
@@ -451,11 +490,17 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     raise HTTPException(status_code=502, detail=error or "Delivery failed")
 
 
-@app.get("/ui/ingresses", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.get(
+    "/ui/ingresses",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_ingresses(request: Request, db: Session = Depends(get_session)):
     ingresses = db.scalars(select(Ingress).order_by(Ingress.created_at.desc())).all()
     routes = db.scalars(select(Route).where(Route.is_active.is_(True))).all()
-    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+    template_list = db.scalars(
+        select(Template).order_by(Template.created_at.desc())
+    ).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "ingresses.html",
@@ -469,7 +514,11 @@ async def ui_ingresses(request: Request, db: Session = Depends(get_session)):
     )
 
 
-@app.post("/ui/ingresses", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.post(
+    "/ui/ingresses",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_ingresses_create(
     request: Request,
     name: str = Form(...),
@@ -520,12 +569,16 @@ async def ui_ingresses_toggle(
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_ingresses_edit(request: Request, ingress_id: int, db: Session = Depends(get_session)):
+async def ui_ingresses_edit(
+    request: Request, ingress_id: int, db: Session = Depends(get_session)
+):
     ingress = db.get(Ingress, ingress_id)
     if not ingress:
         raise HTTPException(status_code=404)
     routes = db.scalars(select(Route).where(Route.is_active.is_(True))).all()
-    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+    template_list = db.scalars(
+        select(Template).order_by(Template.created_at.desc())
+    ).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "ingress_edit.html",
@@ -545,7 +598,9 @@ async def ui_ingresses_edit(request: Request, ingress_id: int, db: Session = Dep
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_ingresses_rotate(request: Request, ingress_id: int, db: Session = Depends(get_session)):
+async def ui_ingresses_rotate(
+    request: Request, ingress_id: int, db: Session = Depends(get_session)
+):
     ingress = db.get(Ingress, ingress_id)
     if not ingress:
         raise HTTPException(status_code=404)
@@ -579,8 +634,14 @@ async def ui_ingresses_update(
         raise HTTPException(status_code=404)
     ingress.name = name
     ingress.slug = slug
-    ingress.default_template_id = int(default_template_id) if default_template_id else None
-    routes = db.scalars(select(Route).where(Route.id.in_(route_ids))).all() if route_ids else []
+    ingress.default_template_id = (
+        int(default_template_id) if default_template_id else None
+    )
+    routes = (
+        db.scalars(select(Route).where(Route.id.in_(route_ids))).all()
+        if route_ids
+        else []
+    )
     ingress.routes = routes
     db.commit()
     request.session["flash"] = "Ingress saved."
@@ -604,10 +665,16 @@ async def ui_ingresses_delete(
     return RedirectResponse("/ui/ingresses", status_code=303)
 
 
-@app.get("/ui/routes", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.get(
+    "/ui/routes",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_routes(request: Request, db: Session = Depends(get_session)):
     routes = db.scalars(select(Route).order_by(Route.created_at.desc())).all()
-    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+    template_list = db.scalars(
+        select(Template).order_by(Template.created_at.desc())
+    ).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "routes.html",
@@ -626,19 +693,33 @@ async def ui_routes(request: Request, db: Session = Depends(get_session)):
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_routes_edit(request: Request, route_id: int, db: Session = Depends(get_session)):
+async def ui_routes_edit(
+    request: Request, route_id: int, db: Session = Depends(get_session)
+):
     route = db.get(Route, route_id)
     if not route:
         raise HTTPException(status_code=404)
-    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+    template_list = db.scalars(
+        select(Template).order_by(Template.created_at.desc())
+    ).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "route_edit.html",
-        {"request": request, "route": route, "templates": template_list, "error": None, "flash": flash},
+        {
+            "request": request,
+            "route": route,
+            "templates": template_list,
+            "error": None,
+            "flash": flash,
+        },
     )
 
 
-@app.post("/ui/routes", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.post(
+    "/ui/routes",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_routes_create(
     request: Request,
     name: str = Form(...),
@@ -692,10 +773,17 @@ async def ui_routes_create(
     error = validate_route_config(route_type, config)
     if error:
         routes = db.scalars(select(Route).order_by(Route.created_at.desc())).all()
-        template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+        template_list = db.scalars(
+            select(Template).order_by(Template.created_at.desc())
+        ).all()
         return templates.TemplateResponse(
             "routes.html",
-            {"request": request, "routes": routes, "templates": template_list, "error": error},
+            {
+                "request": request,
+                "routes": routes,
+                "templates": template_list,
+                "error": error,
+            },
             status_code=422,
         )
     route = Route(
@@ -771,10 +859,17 @@ async def ui_routes_update(
     )
     error = validate_route_config(route_type, config)
     if error:
-        template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
+        template_list = db.scalars(
+            select(Template).order_by(Template.created_at.desc())
+        ).all()
         return templates.TemplateResponse(
             "route_edit.html",
-            {"request": request, "route": route, "templates": template_list, "error": error},
+            {
+                "request": request,
+                "route": route,
+                "templates": template_list,
+                "error": error,
+            },
             status_code=422,
         )
     route.name = name
@@ -814,7 +909,11 @@ async def ui_routes_delete(route_id: int, db: Session = Depends(get_session)):
     return RedirectResponse("/ui/routes", status_code=303)
 
 
-@app.get("/ui/templates", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.get(
+    "/ui/templates",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_templates(request: Request, db: Session = Depends(get_session)):
     items = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
     flash = request.session.pop("flash", None)
@@ -823,7 +922,11 @@ async def ui_templates(request: Request, db: Session = Depends(get_session)):
     )
 
 
-@app.post("/ui/templates", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.post(
+    "/ui/templates",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_templates_create(
     request: Request,
     name: str = Form(...),
@@ -855,7 +958,9 @@ async def ui_templates_create(
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_templates_edit(request: Request, template_id: int, db: Session = Depends(get_session)):
+async def ui_templates_edit(
+    request: Request, template_id: int, db: Session = Depends(get_session)
+):
     template = db.get(Template, template_id)
     if not template:
         raise HTTPException(status_code=404)
@@ -913,7 +1018,9 @@ async def ui_templates_update(
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_templates_preview(request: Request, template_id: int, db: Session = Depends(get_session)):
+async def ui_templates_preview(
+    request: Request, template_id: int, db: Session = Depends(get_session)
+):
     template = db.get(Template, template_id)
     if not template:
         raise HTTPException(status_code=404)
@@ -936,14 +1043,11 @@ async def ui_templates_preview(request: Request, template_id: int, db: Session =
     rendered_discord_payload_json = None
     error = None
     try:
-        rendered = render_template(template.body, context, strict=False)
-        if template.title_template:
-            rendered_title = render_template(template.title_template, context, strict=False)
-        rendered_discord_payload_json = render_discord_payload_json(template, context)
-        if template.show_raw:
-            raw = format_raw_payload(event.raw) if event else None
-            if raw:
-                rendered = f"{rendered}\n\n```\n{raw}\n```"
+        rendered_title, rendered, rendered_discord_payload_json = (
+            render_notification_content(
+                template, context, event.raw if event else None, strict=False
+            )
+        )
     except Exception as exc:  # noqa: BLE001
         error = str(exc)
     return templates.TemplateResponse(
@@ -992,18 +1096,15 @@ async def ui_templates_test_send(
             status_code=422,
         )
     context = build_template_context(event)
-    rendered = render_template(template.body, context)
-    rendered_title = None
-    if template.title_template:
-        rendered_title = render_template(template.title_template, context)
-    if template.show_raw:
-        raw = format_raw_payload(event.raw)
-        if raw:
-            rendered = f"{rendered}\n\n```\n{raw}\n```"
+    rendered_title, rendered, discord_payload_json = render_notification_content(
+        template, context, event.raw
+    )
     extra = {
-        "discord_payload_json": render_discord_payload_json(template, context),
+        "discord_payload_json": discord_payload_json,
     }
-    result = deliver(route.route_type, route.config, rendered_title or "", rendered, extra=extra)
+    result = deliver(
+        route.route_type, route.config, rendered_title or "", rendered, extra=extra
+    )
     if not result.success:
         routes = db.scalars(select(Route)).all()
         ingresses = db.scalars(select(Ingress)).all()
@@ -1031,7 +1132,9 @@ async def ui_templates_test_send(
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
 )
-async def ui_templates_delete(request: Request, template_id: int, db: Session = Depends(get_session)):
+async def ui_templates_delete(
+    request: Request, template_id: int, db: Session = Depends(get_session)
+):
     template = db.get(Template, template_id)
     if not template:
         raise HTTPException(status_code=404)
@@ -1087,7 +1190,11 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/ui/events", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
+@app.get(
+    "/ui/events",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
 async def ui_events(
     request: Request,
     q: str | None = None,

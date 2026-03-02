@@ -11,7 +11,9 @@ class DedupeCache:
         self._cache: dict[str, float] = {}
 
     def _cleanup(self, now: float):
-        expired = [key for key, ts in self._cache.items() if now - ts > self.window_seconds]
+        expired = [
+            key for key, ts in self._cache.items() if now - ts > self.window_seconds
+        ]
         for key in expired:
             self._cache.pop(key, None)
 

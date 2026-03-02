@@ -5,6 +5,7 @@ Revises: 0001_init
 Create Date: 2026-03-01 00:00:00
 
 """
+
 from __future__ import annotations
 
 from alembic import op

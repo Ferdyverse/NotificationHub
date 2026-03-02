@@ -124,18 +124,16 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
                 "msgtype": "m.text",
                 "body": plain_body,
             }
-        send_url = (
-            f"{homeserver.rstrip('/')}/_matrix/client/r0/rooms/{room_id}/send/m.room.message"
-        )
+        send_url = f"{homeserver.rstrip('/')}/_matrix/client/r0/rooms/{room_id}/send/m.room.message"
         headers = {"Authorization": f"Bearer {access_token}"}
         send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
         if send_resp.status_code in {403, 404} and auto_join:
-            join_url = (
-                f"{homeserver.rstrip('/')}/_matrix/client/r0/join/{quote(room_id, safe='')}"
-            )
+            join_url = f"{homeserver.rstrip('/')}/_matrix/client/r0/join/{quote(room_id, safe='')}"
             join_resp = httpx.post(join_url, headers=headers, timeout=timeout)
             join_resp.raise_for_status()
-            send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+            send_resp = httpx.post(
+                send_url, json=content, headers=headers, timeout=timeout
+            )
         if not send_resp.is_success:
             raise httpx.HTTPStatusError(
                 f"Matrix send failed: {send_resp.status_code} {send_resp.text}",

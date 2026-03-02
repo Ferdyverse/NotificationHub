@@ -9,7 +9,9 @@ from app.tools.backup import create_backup, resolve_sqlite_db_path, restore_back
 def _seed_db(db_path: Path, value: str):
     conn = sqlite3.connect(str(db_path))
     try:
-        conn.execute("CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, value TEXT)")
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS sample (id INTEGER PRIMARY KEY, value TEXT)"
+        )
         conn.execute("DELETE FROM sample")
         conn.execute("INSERT INTO sample(value) VALUES (?)", (value,))
         conn.commit()

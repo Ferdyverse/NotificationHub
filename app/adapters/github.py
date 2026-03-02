@@ -45,7 +45,9 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
 
     event_name = (github_event or "unknown").strip().lower()
     action = payload.get("action")
-    repo = payload.get("repository") if isinstance(payload.get("repository"), dict) else {}
+    repo = (
+        payload.get("repository") if isinstance(payload.get("repository"), dict) else {}
+    )
     actor = payload.get("sender") if isinstance(payload.get("sender"), dict) else {}
     repo_name = repo.get("full_name") or repo.get("name") or "unknown repo"
     actor_name = actor.get("login") or "unknown"
@@ -60,7 +62,11 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
     }
 
     if event_name == "workflow_run":
-        run = payload.get("workflow_run") if isinstance(payload.get("workflow_run"), dict) else {}
+        run = (
+            payload.get("workflow_run")
+            if isinstance(payload.get("workflow_run"), dict)
+            else {}
+        )
         run_name = run.get("name") or "workflow"
         run_number = run.get("run_number")
         status = run.get("status")
@@ -89,7 +95,11 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
             }
         )
     elif event_name == "pull_request":
-        pr = payload.get("pull_request") if isinstance(payload.get("pull_request"), dict) else {}
+        pr = (
+            payload.get("pull_request")
+            if isinstance(payload.get("pull_request"), dict)
+            else {}
+        )
         number = pr.get("number")
         pr_title = pr.get("title") or "pull request"
         merged = bool(pr.get("merged"))
@@ -116,7 +126,9 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
             }
         )
     elif event_name == "release":
-        release = payload.get("release") if isinstance(payload.get("release"), dict) else {}
+        release = (
+            payload.get("release") if isinstance(payload.get("release"), dict) else {}
+        )
         tag = release.get("tag_name") or "release"
         severity = "info"
         title = f"Release {tag}"
@@ -131,7 +143,11 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
         ref = str(payload.get("ref") or "")
         branch = ref.split("/")[-1] if ref else None
         compare_url = payload.get("compare")
-        commit_count = len(payload.get("commits", [])) if isinstance(payload.get("commits"), list) else 0
+        commit_count = (
+            len(payload.get("commits", []))
+            if isinstance(payload.get("commits"), list)
+            else 0
+        )
         severity = "info"
         title = f"Push to {branch or 'unknown'}"
         message = (
@@ -140,11 +156,15 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
             f"Commits: {commit_count}\n"
             f"Compare: {compare_url or '-'}"
         )
-        entities.update({"url": compare_url, "branch": branch, "commit_count": commit_count})
+        entities.update(
+            {"url": compare_url, "branch": branch, "commit_count": commit_count}
+        )
     else:
         action_label = f" ({action})" if action else ""
         title = f"GitHub {event_name}{action_label}"
-        message = f"Repository: {repo_name}\nActor: {actor_name}\nAction: {action or '-'}"
+        message = (
+            f"Repository: {repo_name}\nActor: {actor_name}\nAction: {action or '-'}"
+        )
 
     return NormalizedEvent(
         source="github",

@@ -17,7 +17,9 @@ def adapt(payload: Any) -> NormalizedEvent:
             message = json.dumps(payload, indent=2, ensure_ascii=False)
         tags = payload.get("tags") if isinstance(payload.get("tags"), list) else None
         entities = (
-            payload.get("entities") if isinstance(payload.get("entities"), dict) else None
+            payload.get("entities")
+            if isinstance(payload.get("entities"), dict)
+            else None
         )
         return NormalizedEvent(
             source=source,

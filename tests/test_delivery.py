@@ -1,4 +1,3 @@
-
 import httpx
 
 from app.delivery.dispatcher import deliver
@@ -31,7 +30,9 @@ def test_deliver_discord(monkeypatch):
         return DummyResponse(204)
 
     monkeypatch.setattr(httpx, "post", fake_post)
-    result = deliver("discord", {"webhook_url": "https://discord.invalid"}, "Title", "Body")
+    result = deliver(
+        "discord", {"webhook_url": "https://discord.invalid"}, "Title", "Body"
+    )
     assert result.success is True
     assert sent["json"]["content"] == "**Title**\nBody"
     assert "embeds" not in sent["json"]

@@ -5,6 +5,7 @@ Revises: 0009_template_discord_embed
 Create Date: 2026-03-02 00:00:00
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -29,5 +30,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("ingresses") as batch:
-        batch.drop_constraint("fk_ingresses_default_template_id_templates", type_="foreignkey")
+        batch.drop_constraint(
+            "fk_ingresses_default_template_id_templates", type_="foreignkey"
+        )
         batch.drop_column("default_template_id")

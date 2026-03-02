@@ -94,7 +94,9 @@ def restore_backup(database_url: str, backup_path: Path, force: bool = False) ->
         metadata_path = tmp_root / BACKUP_META_FILENAME
         extracted_db_path = tmp_root / BACKUP_DB_FILENAME
         if not metadata_path.exists() or not extracted_db_path.exists():
-            raise ValueError("Invalid backup archive: metadata.json or app.db is missing")
+            raise ValueError(
+                "Invalid backup archive: metadata.json or app.db is missing"
+            )
 
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         if metadata.get("schema_version") != BACKUP_SCHEMA_VERSION:
@@ -136,7 +138,9 @@ def main() -> int:
         default=settings.database_url,
         help="Database URL (default: DATABASE_URL from env/config)",
     )
-    restore_parser.add_argument("--input", required=True, help="Backup archive path (.tar.gz)")
+    restore_parser.add_argument(
+        "--input", required=True, help="Backup archive path (.tar.gz)"
+    )
     restore_parser.add_argument(
         "--force",
         action="store_true",
@@ -149,7 +153,9 @@ def main() -> int:
         print(f"Backup created: {backup_file}")
         return 0
     if args.command == "restore":
-        restored_db = restore_backup(args.database_url, Path(args.input), force=args.force)
+        restored_db = restore_backup(
+            args.database_url, Path(args.input), force=args.force
+        )
         print(f"Backup restored to: {restored_db}")
         return 0
     parser.error("Unsupported command")

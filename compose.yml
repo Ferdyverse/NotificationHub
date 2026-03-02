@@ -1,7 +1,7 @@
 ---
 
 services:
-  formatter:
+  notificationhub:
     image: ghcr.io/ferdyverse/notificationhub:staging
     container_name: notification-hub
     restart: unless-stopped

@@ -1,7 +1,16 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,15 +40,11 @@ class Ingress(Base):
     secret_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     secret_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    default_route_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("routes.id"), nullable=True
-    )
     default_template_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("templates.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
-    default_route = relationship("Route")
     default_template = relationship("Template")
     routes = relationship("Route", secondary=ingress_routes)
 

@@ -5,6 +5,7 @@ Revises: 0008_ingress_routes
 Create Date: 2026-03-02 00:00:00
 
 """
+
 from __future__ import annotations
 
 from alembic import op

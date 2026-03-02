@@ -84,7 +84,9 @@ def _build_discord_payload_from_extra(extra: dict | None) -> dict | None:
     return _normalize_custom_payload(parsed)
 
 
-def deliver_discord(config: dict, title: str, body: str, extra: dict | None = None) -> DeliveryResult:
+def deliver_discord(
+    config: dict, title: str, body: str, extra: dict | None = None
+) -> DeliveryResult:
     webhook_url = config.get("webhook_url")
     if not webhook_url:
         return DeliveryResult(False, "failed", "Missing Discord webhook URL")

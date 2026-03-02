@@ -11,7 +11,9 @@ def test_template_render_happy_path():
 
 def test_title_template_render():
     body = "{{ severity|upper }}: {{ title }}"
-    rendered = render_template(body, {"title": "Hello", "severity": "info"}, strict=True)
+    rendered = render_template(
+        body, {"title": "Hello", "severity": "info"}, strict=True
+    )
     assert rendered == "INFO: Hello"
 
 

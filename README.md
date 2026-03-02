@@ -97,7 +97,7 @@ python -m app.tools.backup restore --input backups/notificationhub-prod.tar.gz -
 Production with Docker Compose (example):
 
 ```bash
-docker compose exec formatter python -m app.tools.backup create --output /data/backup/notificationhub-prod.tar.gz
+docker compose exec notificationhub python -m app.tools.backup create --output /data/backup/notificationhub-prod.tar.gz
 ```
 
 Then copy the archive from your production host to your test PC and restore it there.
@@ -176,7 +176,6 @@ Example:
 ## Routing
 
 - NotificationHub sends events to ingress-assigned routes (fan-out).
-- If `default_route` is set on the ingress, it is included in delivery.
 - Only active routes are used.
 - Template selection order: ingress default template -> route template -> global default template.
 
