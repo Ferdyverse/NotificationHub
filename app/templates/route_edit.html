@@ -53,6 +53,16 @@
     <div class="text-sm text-slate-300 font-semibold">Discord</div>
     <input name="discord_webhook_url" value="{{ route.config.get('webhook_url') if route.config }}" placeholder="Webhook URL" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
     <input name="discord_bearer_token" type="password" value="{{ route.config.get('bearer_token') if route.config }}" placeholder="Bearer Token (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="discord_use_embed" value="true" {% if route.config and route.config.get('use_embed') %}checked{% endif %} />
+      Send as embed
+    </label>
+    <input
+      name="discord_embed_color"
+      value="{{ route.config.get('embed_color') if route.config }}"
+      placeholder="Embed color hex (optional, e.g. #5865F2)"
+      class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
+    />
   </div>
   <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="email">
     <div class="text-sm text-slate-300 font-semibold">Email</div>

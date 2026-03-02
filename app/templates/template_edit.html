@@ -24,6 +24,18 @@
     <label class="block text-sm text-slate-300">Body</label>
     <textarea name="body" rows="12" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required>{{ template.body }}</textarea>
   </div>
+  <div>
+    <label class="block text-sm text-slate-300">Discord Embed JSON Template (optional)</label>
+    <textarea
+      name="discord_embed_template"
+      rows="12"
+      class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono text-sm"
+      placeholder='{"embeds":[{"title":"{{ title }}","description":"{{ message }}","color":5793266}]}'
+    >{{ template.discord_embed_template or '' }}</textarea>
+    <p class="text-xs text-slate-500 mt-1">
+      Rendered with Jinja context. Accepts full Discord webhook payload JSON, a single embed object, or an embeds array.
+    </p>
+  </div>
   <label class="flex items-center gap-2 text-sm text-slate-300">
     <input type="checkbox" name="show_raw" value="true" {% if template.show_raw %}checked{% endif %} />
     Show raw payload

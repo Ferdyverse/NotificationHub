@@ -23,12 +23,82 @@ class DummyResponse:
 
 
 def test_deliver_discord(monkeypatch):
+    sent = {}
+
     def fake_post(url, json=None, headers=None, timeout=None):
+        sent["url"] = url
+        sent["json"] = json
         return DummyResponse(204)
 
     monkeypatch.setattr(httpx, "post", fake_post)
     result = deliver("discord", {"webhook_url": "https://discord.invalid"}, "Title", "Body")
     assert result.success is True
+    assert sent["json"]["content"] == "**Title**\nBody"
+    assert "embeds" not in sent["json"]
+
+
+def test_deliver_discord_embed(monkeypatch):
+    sent = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        sent["url"] = url
+        sent["json"] = json
+        return DummyResponse(204)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    result = deliver(
+        "discord",
+        {
+            "webhook_url": "https://discord.invalid",
+            "use_embed": True,
+            "embed_color": "#5865F2",
+        },
+        "Deploy Succeeded",
+        "Service is healthy.",
+    )
+    assert result.success is True
+    assert "content" not in sent["json"]
+    assert sent["json"]["embeds"][0]["title"] == "Deploy Succeeded"
+    assert sent["json"]["embeds"][0]["description"] == "Service is healthy."
+    assert sent["json"]["embeds"][0]["color"] == 5793266
+
+
+def test_deliver_discord_custom_payload_template(monkeypatch):
+    sent = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        sent["url"] = url
+        sent["json"] = json
+        return DummyResponse(204)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    result = deliver(
+        "discord",
+        {"webhook_url": "https://discord.invalid"},
+        "Ignored Title",
+        "Ignored Body",
+        extra={
+            "discord_payload_json": (
+                '{"content":"Build done","embeds":[{"title":"Deploy","fields":[{"name":"env","value":"prod"}]}]}'
+            )
+        },
+    )
+    assert result.success is True
+    assert sent["json"]["content"] == "Build done"
+    assert sent["json"]["embeds"][0]["title"] == "Deploy"
+    assert sent["json"]["embeds"][0]["fields"][0]["name"] == "env"
+
+
+def test_deliver_discord_custom_payload_template_invalid_json():
+    result = deliver(
+        "discord",
+        {"webhook_url": "https://discord.invalid"},
+        "Ignored Title",
+        "Ignored Body",
+        extra={"discord_payload_json": "{invalid"},
+    )
+    assert result.success is False
+    assert "invalid JSON" in (result.error or "")
 
 
 def test_deliver_matrix(monkeypatch):

@@ -33,9 +33,13 @@ class Ingress(Base):
     default_route_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("routes.id"), nullable=True
     )
+    default_template_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("templates.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     default_route = relationship("Route")
+    default_template = relationship("Template")
     routes = relationship("Route", secondary=ingress_routes)
     rules = relationship("Rule", back_populates="ingress")
 
@@ -67,6 +71,7 @@ class Template(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     title_template: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    discord_embed_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     show_raw: Mapped[bool] = mapped_column(Boolean, default=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

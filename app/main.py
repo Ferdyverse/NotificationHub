@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import json
 import logging
 import secrets
@@ -12,13 +13,14 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.adapters import generic_json, generic_text
 from app.adapters.types import NormalizedEvent
 from app.config import settings
-from app.db import Base, SessionLocal, engine, get_session
+from app.db import SessionLocal, get_session
 from app.delivery.dispatcher import deliver
 from app.models import EventLog, Ingress, Route, Rule, Template
 from app.render.templates import DEFAULT_TEMPLATE_BODY, render_template
@@ -27,7 +29,19 @@ from app.runtime import DedupeCache, RateLimiter
 from app.security.auth import hash_secret, require_ui_basic_auth, verify_secret
 from app.utils import cap_payload
 
-app = FastAPI(title="NotificationHub")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    logging.basicConfig(level=logging.INFO)
+    db = SessionLocal()
+    try:
+        ensure_defaults(db)
+        yield
+    finally:
+        db.close()
+
+
+app = FastAPI(title="NotificationHub", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
@@ -70,6 +84,8 @@ def build_route_config(
     matrix_bearer_token: str | None,
     discord_webhook_url: str | None,
     discord_bearer_token: str | None,
+    discord_use_embed: str | None,
+    discord_embed_color: str | None,
     email_smtp_host: str | None,
     email_smtp_port: str | None,
     email_smtp_tls: str | None,
@@ -94,6 +110,8 @@ def build_route_config(
         return {
             "webhook_url": discord_webhook_url,
             "bearer_token": discord_bearer_token,
+            "use_embed": bool(discord_use_embed),
+            "embed_color": discord_embed_color,
         }
     if route_type == "email":
         return {
@@ -137,8 +155,12 @@ def ensure_defaults(db: Session):
             import os
 
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    Base.metadata.create_all(bind=engine)
-    template = db.scalar(select(Template).where(Template.is_default.is_(True)))
+    try:
+        template = db.scalar(select(Template).where(Template.is_default.is_(True)))
+    except OperationalError as exc:
+        raise RuntimeError(
+            "Database schema is not initialized. Run 'alembic upgrade head' before starting the app."
+        ) from exc
     if template is None:
         template = Template(
             name="Default",
@@ -196,6 +218,40 @@ def format_raw_payload(raw: Any) -> str | None:
     return str(raw)
 
 
+def build_template_context(event: EventLog | NormalizedEvent) -> dict[str, Any]:
+    timestamp = getattr(event, "timestamp", None)
+    if not timestamp and getattr(event, "created_at", None):
+        timestamp = event.created_at.isoformat() + "Z"
+    return {
+        "source": event.source,
+        "event": event.event,
+        "severity": event.severity,
+        "title": event.title,
+        "message": event.message,
+        "tags": event.tags,
+        "entities": event.entities,
+        "raw": getattr(event, "raw", None),
+        "timestamp": timestamp,
+    }
+
+
+def render_discord_payload_json(template: Template, context: dict[str, Any]) -> str | None:
+    if not template.discord_embed_template:
+        return None
+    rendered = render_template(template.discord_embed_template, context)
+    if not rendered.strip():
+        return None
+    return rendered
+
+
+def resolve_template_id(matched_rule: Rule | None, ingress: Ingress, route: Route) -> int | None:
+    if matched_rule and matched_rule.template_id:
+        return matched_rule.template_id
+    if ingress.default_template_id:
+        return ingress.default_template_id
+    return route.template_id
+
+
 def enforce_event_log_limit(db: Session):
     max_events = settings.max_events
     if max_events <= 0:
@@ -207,17 +263,6 @@ def enforce_event_log_limit(db: Session):
         for row in rows:
             db.delete(row)
         db.commit()
-
-
-@app.on_event("startup")
-async def startup_event():
-    logging.basicConfig(level=logging.INFO)
-    db = SessionLocal()
-    try:
-        ensure_defaults(db)
-    finally:
-        db.close()
-
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -299,14 +344,10 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     else:
         log_info("route_selected", ingress_id=ingress.id, via="fanout", routes=[r.id for r in routes_to_send])
 
-    context = event.__dict__
+    context = build_template_context(event)
     results = []
     for route in routes_to_send:
-        template_id = (
-            matched_rule.template_id
-            if matched_rule and matched_rule.template_id
-            else route.template_id
-        )
+        template_id = resolve_template_id(matched_rule, ingress, route)
         template = db.get(Template, template_id) if template_id else None
         if template is None:
             template = load_default_template(db)
@@ -318,7 +359,10 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
             raw = format_raw_payload(event.raw)
             if raw:
                 rendered = f"{rendered}\n\n```\n{raw}\n```"
-        result = deliver(route.route_type, route.config, rendered_title or "", rendered)
+        extra = {
+            "discord_payload_json": render_discord_payload_json(template, context),
+        }
+        result = deliver(route.route_type, route.config, rendered_title or "", rendered, extra=extra)
         if result.meta:
             maybe_persist_matrix_token(route, result.meta)
             db.add(route)
@@ -355,10 +399,17 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
 async def ui_ingresses(request: Request, db: Session = Depends(get_session)):
     ingresses = db.scalars(select(Ingress).order_by(Ingress.created_at.desc())).all()
     routes = db.scalars(select(Route).where(Route.is_active.is_(True))).all()
+    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "ingresses.html",
-        {"request": request, "ingresses": ingresses, "routes": routes, "flash": flash},
+        {
+            "request": request,
+            "ingresses": ingresses,
+            "routes": routes,
+            "templates": template_list,
+            "flash": flash,
+        },
     )
 
 
@@ -368,6 +419,7 @@ async def ui_ingresses_create(
     name: str = Form(...),
     slug: str = Form(...),
     route_ids: list[int] = Form([]),
+    default_template_id: str | None = Form(None),
     db: Session = Depends(get_session),
 ):
     secret = secrets.token_urlsafe(24)
@@ -375,6 +427,7 @@ async def ui_ingresses_create(
         name=name,
         slug=slug,
         secret_hash=hash_secret(secret),
+        default_template_id=int(default_template_id) if default_template_id else None,
     )
     if route_ids:
         routes = db.scalars(select(Route).where(Route.id.in_(route_ids))).all()
@@ -415,10 +468,18 @@ async def ui_ingresses_edit(request: Request, ingress_id: int, db: Session = Dep
     if not ingress:
         raise HTTPException(status_code=404)
     routes = db.scalars(select(Route).where(Route.is_active.is_(True))).all()
+    template_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse(
         "ingress_edit.html",
-        {"request": request, "ingress": ingress, "routes": routes, "error": None, "flash": flash},
+        {
+            "request": request,
+            "ingress": ingress,
+            "routes": routes,
+            "templates": template_list,
+            "error": None,
+            "flash": flash,
+        },
     )
 
 
@@ -452,6 +513,7 @@ async def ui_ingresses_update(
     name: str = Form(...),
     slug: str = Form(...),
     route_ids: list[int] = Form([]),
+    default_template_id: str | None = Form(None),
     db: Session = Depends(get_session),
 ):
     ingress = db.get(Ingress, ingress_id)
@@ -459,6 +521,7 @@ async def ui_ingresses_update(
         raise HTTPException(status_code=404)
     ingress.name = name
     ingress.slug = slug
+    ingress.default_template_id = int(default_template_id) if default_template_id else None
     routes = db.scalars(select(Route).where(Route.id.in_(route_ids))).all() if route_ids else []
     ingress.routes = routes
     db.commit()
@@ -532,6 +595,8 @@ async def ui_routes_create(
     matrix_bearer_token: str | None = Form(None),
     discord_webhook_url: str | None = Form(None),
     discord_bearer_token: str | None = Form(None),
+    discord_use_embed: str | None = Form(None),
+    discord_embed_color: str | None = Form(None),
     email_smtp_host: str | None = Form(None),
     email_smtp_port: str | None = Form(None),
     email_smtp_tls: str | None = Form(None),
@@ -554,6 +619,8 @@ async def ui_routes_create(
         matrix_bearer_token,
         discord_webhook_url,
         discord_bearer_token,
+        discord_use_embed,
+        discord_embed_color,
         email_smtp_host,
         email_smtp_port,
         email_smtp_tls,
@@ -605,6 +672,8 @@ async def ui_routes_update(
     matrix_bearer_token: str | None = Form(None),
     discord_webhook_url: str | None = Form(None),
     discord_bearer_token: str | None = Form(None),
+    discord_use_embed: str | None = Form(None),
+    discord_embed_color: str | None = Form(None),
     email_smtp_host: str | None = Form(None),
     email_smtp_port: str | None = Form(None),
     email_smtp_tls: str | None = Form(None),
@@ -630,6 +699,8 @@ async def ui_routes_update(
         matrix_bearer_token,
         discord_webhook_url,
         discord_bearer_token,
+        discord_use_embed,
+        discord_embed_color,
         email_smtp_host,
         email_smtp_port,
         email_smtp_tls,
@@ -700,6 +771,7 @@ async def ui_templates_create(
     name: str = Form(...),
     title_template: str = Form(""),
     body: str = Form(...),
+    discord_embed_template: str = Form(""),
     show_raw: bool | None = Form(False),
     is_default: bool | None = Form(False),
     db: Session = Depends(get_session),
@@ -710,6 +782,7 @@ async def ui_templates_create(
         name=name,
         title_template=title_template or None,
         body=body,
+        discord_embed_template=discord_embed_template or None,
         show_raw=bool(show_raw),
         is_default=bool(is_default),
     )
@@ -756,6 +829,7 @@ async def ui_templates_update(
     name: str = Form(...),
     title_template: str = Form(""),
     body: str = Form(...),
+    discord_embed_template: str = Form(""),
     show_raw: bool | None = Form(False),
     is_default: bool | None = Form(False),
     db: Session = Depends(get_session),
@@ -768,6 +842,7 @@ async def ui_templates_update(
     template.name = name
     template.title_template = title_template or None
     template.body = body
+    template.discord_embed_template = discord_embed_template or None
     template.show_raw = bool(show_raw)
     template.is_default = bool(is_default)
     db.commit()
@@ -786,16 +861,7 @@ async def ui_templates_preview(request: Request, template_id: int, db: Session =
         raise HTTPException(status_code=404)
     event = db.scalar(select(EventLog).order_by(EventLog.created_at.desc()))
     if event:
-        context = {
-            "source": event.source,
-            "event": event.event,
-            "severity": event.severity,
-            "title": event.title,
-            "message": event.message,
-            "tags": event.tags,
-            "entities": event.entities,
-            "timestamp": event.created_at.isoformat() + "Z",
-        }
+        context = build_template_context(event)
     else:
         context = {
             "source": "generic",
@@ -809,13 +875,15 @@ async def ui_templates_preview(request: Request, template_id: int, db: Session =
         }
     rendered = None
     rendered_title = None
+    rendered_discord_payload_json = None
     error = None
     try:
         rendered = render_template(template.body, context, strict=False)
         if template.title_template:
             rendered_title = render_template(template.title_template, context, strict=False)
+        rendered_discord_payload_json = render_discord_payload_json(template, context)
         if template.show_raw:
-            raw = format_raw_payload(event.raw)
+            raw = format_raw_payload(event.raw) if event else None
             if raw:
                 rendered = f"{rendered}\n\n```\n{raw}\n```"
     except Exception as exc:  # noqa: BLE001
@@ -827,6 +895,7 @@ async def ui_templates_preview(request: Request, template_id: int, db: Session =
             "template": template,
             "rendered": rendered,
             "rendered_title": rendered_title,
+            "rendered_discord_payload_json": rendered_discord_payload_json,
             "error": error,
         },
     )
@@ -864,16 +933,7 @@ async def ui_templates_test_send(
             },
             status_code=422,
         )
-    context = {
-        "source": event.source,
-        "event": event.event,
-        "severity": event.severity,
-        "title": event.title,
-        "message": event.message,
-        "tags": event.tags,
-        "entities": event.entities,
-        "timestamp": event.created_at.isoformat() + "Z",
-    }
+    context = build_template_context(event)
     rendered = render_template(template.body, context)
     rendered_title = None
     if template.title_template:
@@ -882,7 +942,10 @@ async def ui_templates_test_send(
         raw = format_raw_payload(event.raw)
         if raw:
             rendered = f"{rendered}\n\n```\n{raw}\n```"
-    result = deliver(route.route_type, route.config, rendered_title or "", rendered)
+    extra = {
+        "discord_payload_json": render_discord_payload_json(template, context),
+    }
+    result = deliver(route.route_type, route.config, rendered_title or "", rendered, extra=extra)
     if not result.success:
         routes = db.scalars(select(Route)).all()
         ingresses = db.scalars(select(Ingress)).all()
