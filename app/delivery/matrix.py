@@ -45,100 +45,6 @@ def _store_token(homeserver: str, username: str, token: str, expires_in_ms: int 
     }
 
 
-def _join_url_candidates(homeserver: str, room_id: str) -> list[str]:
-    base = homeserver.rstrip("/")
-    raw = room_id
-    encoded = quote(room_id, safe="")
-    return [
-        f"{base}/_matrix/client/v3/rooms/{encoded}/join",
-        f"{base}/_matrix/client/r0/rooms/{encoded}/join",
-        f"{base}/_matrix/client/v3/join/{raw}",
-        f"{base}/_matrix/client/r0/join/{raw}",
-        f"{base}/_matrix/client/v3/join/{encoded}",
-        f"{base}/_matrix/client/r0/join/{encoded}",
-    ]
-
-
-def _login_url_candidates(homeserver: str) -> list[str]:
-    base = homeserver.rstrip("/")
-    return [
-        f"{base}/_matrix/client/r0/login",
-        f"{base}/_matrix/client/v3/login",
-    ]
-
-
-def _send_room_message(
-    homeserver: str,
-    room_id: str,
-    content: dict,
-    headers: dict[str, str],
-    timeout: int,
-) -> httpx.Response:
-    encoded = quote(room_id, safe="")
-    send_url = f"{homeserver.rstrip('/')}/_matrix/client/v3/rooms/{encoded}/send/m.room.message"
-    return httpx.post(send_url, json=content, headers=headers, timeout=timeout)
-
-
-def _try_auto_join_room(
-    homeserver: str,
-    room_id: str,
-    headers: dict[str, str],
-    timeout: int,
-) -> str | None:
-    for join_url in _join_url_candidates(homeserver, room_id):
-        join_resp = httpx.post(join_url, json={}, headers=headers, timeout=timeout)
-        if join_resp.is_success:
-            try:
-                payload = join_resp.json()
-            except Exception:  # noqa: BLE001
-                payload = {}
-            joined_room_id = payload.get("room_id")
-            if isinstance(joined_room_id, str) and joined_room_id:
-                return joined_room_id
-            return room_id
-    return None
-
-
-def _login_matrix(
-    homeserver: str,
-    username: str,
-    password: str,
-    timeout: int,
-) -> tuple[str, int | None]:
-    login_payload = {
-        "type": "m.login.password",
-        "user": username,
-        "password": password,
-    }
-    login_resp = None
-    for login_url in _login_url_candidates(homeserver):
-        candidate = httpx.post(login_url, json=login_payload, timeout=timeout)
-        if candidate.status_code in {404, 405}:
-            continue
-        if candidate.status_code == 429:
-            retry_after = candidate.headers.get("Retry-After")
-            if retry_after and retry_after.isdigit():
-                time.sleep(int(retry_after))
-        candidate.raise_for_status()
-        login_resp = candidate
-        break
-    if login_resp is None:
-        raise RuntimeError("Matrix login endpoint not found")
-    payload = login_resp.json()
-    access_token = payload.get("access_token")
-    expires_in_ms = payload.get("expires_in_ms")
-    logger.info(
-        "matrix_login_result",
-        extra={
-            "has_access_token": bool(access_token),
-            "response_keys": list(payload.keys()),
-        },
-    )
-    if not access_token:
-        raise RuntimeError("Matrix login missing access_token")
-    return str(access_token), expires_in_ms
-
-
 def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
     homeserver = config.get("homeserver")
     room_id = config.get("room_id")
@@ -161,19 +67,41 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
         nonlocal access_token, expires_in_ms, issued_via_login
         access_token = bearer_token
         if not access_token:
-            if username:
-                cached = _get_cached_token(homeserver, username)
-                if cached:
-                    access_token = cached
-                    logger.info("matrix_token_cache_hit", extra={"username": username})
-                else:
-                    logger.info("matrix_token_cache_miss", extra={"username": username})
+            cached = _get_cached_token(homeserver, username)
+            if cached:
+                access_token = cached
+                logger.info("matrix_token_cache_hit", extra={"username": username})
+            else:
+                logger.info("matrix_token_cache_miss", extra={"username": username})
         if not access_token:
-            if not username or not password:
-                raise RuntimeError("Matrix send missing token and login credentials")
-            access_token, expires_in_ms = _login_matrix(
-                homeserver, username, password, timeout
+            login_payload = {
+                "type": "m.login.password",
+                "user": username,
+                "password": password,
+            }
+            login_resp = httpx.post(
+                f"{homeserver.rstrip('/')}/_matrix/client/r0/login",
+                json=login_payload,
+                timeout=timeout,
             )
+            if login_resp.status_code == 429:
+                retry_after = login_resp.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    time.sleep(int(retry_after))
+            login_resp.raise_for_status()
+            payload = login_resp.json()
+            access_token = payload.get("access_token")
+            expires_in_ms = payload.get("expires_in_ms")
+            logger.info(
+                "matrix_login_result",
+                extra={
+                    "has_access_token": bool(access_token),
+                    "response_keys": list(payload.keys()),
+                },
+            )
+            # token logging disabled after debugging
+            if not access_token:
+                raise RuntimeError("Matrix login missing access_token")
             issued_via_login = True
             _store_token(
                 homeserver,
@@ -196,38 +124,18 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
                 "msgtype": "m.text",
                 "body": plain_body,
             }
-
-        def _send_with_token(token: str) -> httpx.Response:
-            headers = {"Authorization": f"Bearer {token}"}
-            send_resp_inner = _send_room_message(
-                homeserver, room_id, content, headers, timeout
+        send_url = (
+            f"{homeserver.rstrip('/')}/_matrix/client/r0/rooms/{room_id}/send/m.room.message"
+        )
+        headers = {"Authorization": f"Bearer {access_token}"}
+        send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+        if send_resp.status_code in {403, 404} and auto_join:
+            join_url = (
+                f"{homeserver.rstrip('/')}/_matrix/client/r0/join/{quote(room_id, safe='')}"
             )
-            if send_resp_inner.status_code in {403, 404} and auto_join:
-                joined_room_id = _try_auto_join_room(homeserver, room_id, headers, timeout)
-                if joined_room_id:
-                    send_resp_inner = _send_room_message(
-                        homeserver, joined_room_id, content, headers, timeout
-                    )
-            return send_resp_inner
-
-        send_resp = _send_with_token(str(access_token))
-        if (
-            send_resp.status_code == 401
-            and username
-            and password
-            and (bearer_token or not issued_via_login)
-        ):
-            logger.info(
-                "matrix_token_rejected_retry_login",
-                extra={"status_code": send_resp.status_code, "username": username},
-            )
-            TOKEN_CACHE.pop(_cache_key(homeserver, username), None)
-            access_token, expires_in_ms = _login_matrix(
-                homeserver, username, password, timeout
-            )
-            issued_via_login = True
-            _store_token(homeserver, username, access_token, expires_in_ms)
-            send_resp = _send_with_token(access_token)
+            join_resp = httpx.post(join_url, headers=headers, timeout=timeout)
+            join_resp.raise_for_status()
+            send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
         if not send_resp.is_success:
             raise httpx.HTTPStatusError(
                 f"Matrix send failed: {send_resp.status_code} {send_resp.text}",
