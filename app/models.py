@@ -42,7 +42,6 @@ class Ingress(Base):
     default_route = relationship("Route")
     default_template = relationship("Template")
     routes = relationship("Route", secondary=ingress_routes)
-    rules = relationship("Rule", back_populates="ingress")
 
 
 class Route(Base):
@@ -76,28 +75,6 @@ class Template(Base):
     show_raw: Mapped[bool] = mapped_column(Boolean, default=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-
-
-class Rule(Base):
-    __tablename__ = "rules"
-    __allow_unmapped__ = True
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    ingress_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("ingresses.id"), nullable=True
-    )
-    route_id: Mapped[int] = mapped_column(Integer, ForeignKey("routes.id"))
-    template_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("templates.id"), nullable=True
-    )
-    conditions: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-
-    ingress = relationship("Ingress", back_populates="rules")
-    route = relationship("Route")
-    template = relationship("Template")
 
 
 class EventLog(Base):

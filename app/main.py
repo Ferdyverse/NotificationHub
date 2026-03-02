@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -24,9 +24,8 @@ from app.adapters.types import NormalizedEvent
 from app.config import settings
 from app.db import SessionLocal, get_session
 from app.delivery.dispatcher import deliver
-from app.models import EventLog, Ingress, Route, Rule, Template
+from app.models import EventLog, Ingress, Route, Template
 from app.render.templates import DEFAULT_TEMPLATE_BODY, render_template
-from app.routing.rules import select_route
 from app.runtime import DedupeCache, RateLimiter
 from app.security.auth import hash_secret, require_ui_basic_auth, verify_secret
 from app.utils import cap_payload
@@ -246,9 +245,7 @@ def render_discord_payload_json(template: Template, context: dict[str, Any]) -> 
     return rendered
 
 
-def resolve_template_id(matched_rule: Rule | None, ingress: Ingress, route: Route) -> int | None:
-    if matched_rule and matched_rule.template_id:
-        return matched_rule.template_id
+def resolve_template_id(ingress: Ingress, route: Route) -> int | None:
     if ingress.default_template_id:
         return ingress.default_template_id
     return route.template_id
@@ -391,16 +388,9 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         log_info("event_rate_limited", ingress_id=ingress.id)
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
-    rules = db.scalars(
-        select(Rule).where(or_(Rule.ingress_id.is_(None), Rule.ingress_id == ingress.id))
-    ).all()
-    matched_rule = select_route(event, rules)
-    if matched_rule:
-        routes_to_send = [matched_rule.route]
-    else:
-        routes_to_send = list(ingress.routes)
-        if ingress.default_route and ingress.default_route not in routes_to_send:
-            routes_to_send.append(ingress.default_route)
+    routes_to_send = list(ingress.routes)
+    if ingress.default_route and ingress.default_route not in routes_to_send:
+        routes_to_send.append(ingress.default_route)
     routes_to_send = [r for r in routes_to_send if r and r.is_active]
     if not routes_to_send:
         db.add(build_event_log(ingress, event, "failed", "No active route"))
@@ -408,15 +398,12 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         enforce_event_log_limit(db)
         log_info("event_no_route", ingress_id=ingress.id, source=event.source)
         raise HTTPException(status_code=422, detail="No active route")
-    if matched_rule:
-        log_info("route_selected", ingress_id=ingress.id, route_id=matched_rule.route.id, via="rule")
-    else:
-        log_info("route_selected", ingress_id=ingress.id, via="fanout", routes=[r.id for r in routes_to_send])
+    log_info("route_selected", ingress_id=ingress.id, via="fanout", routes=[r.id for r in routes_to_send])
 
     context = build_template_context(event)
     results = []
     for route in routes_to_send:
-        template_id = resolve_template_id(matched_rule, ingress, route)
+        template_id = resolve_template_id(ingress, route)
         template = db.get(Template, template_id) if template_id else None
         if template is None:
             template = load_default_template(db)
@@ -1098,159 +1085,6 @@ async def favicon():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/ui/rules", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
-async def ui_rules(request: Request, db: Session = Depends(get_session)):
-    rules = db.scalars(select(Rule).order_by(Rule.order.asc())).all()
-    ingresses = db.scalars(select(Ingress)).all()
-    routes = db.scalars(select(Route)).all()
-    templates_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
-    flash = request.session.pop("flash", None)
-    return templates.TemplateResponse(
-        "rules.html",
-        {
-            "request": request,
-            "rules": rules,
-            "ingresses": ingresses,
-            "routes": routes,
-            "templates": templates_list,
-            "flash": flash,
-        },
-    )
-
-
-@app.post("/ui/rules", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])
-async def ui_rules_create(
-    request: Request,
-    name: str = Form(...),
-    order: int = Form(0),
-    ingress_id: int | None = Form(None),
-    route_id: int = Form(...),
-    template_id: int | None = Form(None),
-    condition_type: str = Form(...),
-    condition_key: str | None = Form(None),
-    condition_value: str | None = Form(None),
-    db: Session = Depends(get_session),
-):
-    if condition_type not in {
-        "source_eq",
-        "event_startswith",
-        "severity_eq",
-        "tags_contains",
-        "entity_eq",
-        "always",
-    }:
-        raise HTTPException(status_code=422, detail="Unsupported condition type")
-    if condition_type == "entity_eq" and not condition_key:
-        raise HTTPException(status_code=422, detail="Entity key is required")
-    if condition_type != "always" and not condition_value:
-        raise HTTPException(status_code=422, detail="Condition value is required")
-    condition: dict[str, Any] = {"type": condition_type, "value": condition_value}
-    if condition_type == "entity_eq":
-        condition["key"] = condition_key
-    rule = Rule(
-        name=name,
-        order=order,
-        ingress_id=ingress_id,
-        route_id=route_id,
-        template_id=template_id,
-        conditions=[condition],
-    )
-    db.add(rule)
-    db.commit()
-    request.session["flash"] = "Rule saved."
-    return RedirectResponse("/ui/rules", status_code=303)
-
-
-@app.post(
-    "/ui/rules/{rule_id}/delete",
-    response_class=HTMLResponse,
-    dependencies=[Depends(require_ui_basic_auth)],
-)
-async def ui_rules_delete(rule_id: int, db: Session = Depends(get_session)):
-    rule = db.get(Rule, rule_id)
-    if not rule:
-        raise HTTPException(status_code=404)
-    db.delete(rule)
-    db.commit()
-    return RedirectResponse("/ui/rules", status_code=303)
-
-
-@app.get(
-    "/ui/rules/{rule_id}",
-    response_class=HTMLResponse,
-    dependencies=[Depends(require_ui_basic_auth)],
-)
-async def ui_rules_edit(request: Request, rule_id: int, db: Session = Depends(get_session)):
-    rule = db.get(Rule, rule_id)
-    if not rule:
-        raise HTTPException(status_code=404)
-    ingresses = db.scalars(select(Ingress)).all()
-    routes = db.scalars(select(Route)).all()
-    templates_list = db.scalars(select(Template).order_by(Template.created_at.desc())).all()
-    flash = request.session.pop("flash", None)
-    return templates.TemplateResponse(
-        "rule_edit.html",
-        {
-            "request": request,
-            "rule": rule,
-            "ingresses": ingresses,
-            "routes": routes,
-            "templates": templates_list,
-            "error": None,
-            "flash": flash,
-        },
-    )
-
-
-@app.post(
-    "/ui/rules/{rule_id}",
-    response_class=HTMLResponse,
-    dependencies=[Depends(require_ui_basic_auth)],
-)
-async def ui_rules_update(
-    request: Request,
-    rule_id: int,
-    name: str = Form(...),
-    order: int = Form(0),
-    ingress_id: int | None = Form(None),
-    route_id: int = Form(...),
-    template_id: int | None = Form(None),
-    condition_type: str = Form(...),
-    condition_key: str | None = Form(None),
-    condition_value: str | None = Form(None),
-    db: Session = Depends(get_session),
-):
-    rule = db.get(Rule, rule_id)
-    if not rule:
-        raise HTTPException(status_code=404)
-    if condition_type not in {
-        "source_eq",
-        "event_startswith",
-        "severity_eq",
-        "tags_contains",
-        "entity_eq",
-        "always",
-    }:
-        raise HTTPException(status_code=422, detail="Unsupported condition type")
-    if condition_type == "entity_eq" and not condition_key:
-        raise HTTPException(status_code=422, detail="Entity key is required")
-    if condition_type != "always" and not condition_value:
-        raise HTTPException(status_code=422, detail="Condition value is required")
-    condition: dict[str, Any] = {"type": condition_type, "value": condition_value}
-    if condition_type == "entity_eq":
-        condition["key"] = condition_key
-
-    rule.name = name
-    rule.order = order
-    rule.ingress_id = ingress_id
-    rule.route_id = route_id
-    rule.template_id = template_id
-    rule.conditions = [condition]
-    db.commit()
-    request.session["flash"] = "Rule saved."
-    return RedirectResponse(f"/ui/rules/{rule.id}", status_code=303)
 
 
 @app.get("/ui/events", response_class=HTMLResponse, dependencies=[Depends(require_ui_basic_auth)])

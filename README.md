@@ -12,8 +12,8 @@ It receives events, normalizes payloads, renders messages via templates, and del
 - `X-Gitlab-Token: <secret>`
 - `X-Hub-Signature-256` / `X-Hub-Signature` (GitHub HMAC signature)
 - Adapters: `generic-json`, `generic-text`, and `github` (auto-detected via `X-GitHub-Event`)
-- UI (HTMX + server-rendered templates) for ingresses, routes, templates, rules, and event logs
-- Optional per-ingress default template (useful when sharing routes across sources without extra rules)
+- UI (HTMX + server-rendered templates) for ingresses, routes, templates, and event logs
+- Optional per-ingress default template (useful when sharing routes across sources)
 - Template preview and test-send from UI
 - In-memory dedupe window and per-ingress rate limiting
 - SQLite persistence with SQLAlchemy and Alembic migrations
@@ -144,22 +144,12 @@ Example:
 }
 ```
 
-## Routing Rules
+## Routing
 
-- Rules are sorted by `order`
-- First matching rule wins
-- If no rule matches, NotificationHub falls back to ingress-assigned routes (fan-out)
-- Only active routes are used
-- Template selection order: rule template -> ingress default template -> route template -> global default template
-
-Supported condition types:
-
-- `source_eq`
-- `event_startswith`
-- `severity_eq`
-- `tags_contains`
-- `entity_eq`
-- `always`
+- NotificationHub sends events to ingress-assigned routes (fan-out).
+- If `default_route` is set on the ingress, it is included in delivery.
+- Only active routes are used.
+- Template selection order: ingress default template -> route template -> global default template.
 
 ## Development
 
@@ -174,7 +164,6 @@ Core paths:
 - App entrypoint: `app/main.py`
 - Security/auth: `app/security/auth.py`
 - Adapters: `app/adapters/`
-- Routing: `app/routing/rules.py`
 - Template rendering: `app/render/templates.py`
 - Database models: `app/models.py`
 - Migrations: `alembic/`
