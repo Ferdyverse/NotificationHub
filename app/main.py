@@ -19,7 +19,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.adapters import generic_json, generic_text
+from app.adapters import generic_json, generic_text, github
 from app.adapters.types import NormalizedEvent
 from app.config import settings
 from app.db import SessionLocal, get_session
@@ -355,7 +355,11 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     try:
         if "application/json" in content_type:
             payload = json.loads(raw_body)
-            event = generic_json.adapt(payload)
+            github_event = request.headers.get("X-GitHub-Event")
+            if github_event:
+                event = github.adapt(payload, github_event)
+            else:
+                event = generic_json.adapt(payload)
         else:
             payload = raw_body.decode("utf-8", errors="replace")
             event = generic_text.adapt(payload)

@@ -11,7 +11,7 @@ It receives events, normalizes payloads, renders messages via templates, and del
 - `?token=<secret>`
 - `X-Gitlab-Token: <secret>`
 - `X-Hub-Signature-256` / `X-Hub-Signature` (GitHub HMAC signature)
-- Adapters: `generic-json` and `generic-text`
+- Adapters: `generic-json`, `generic-text`, and `github` (auto-detected via `X-GitHub-Event`)
 - UI (HTMX + server-rendered templates) for ingresses, routes, templates, rules, and event logs
 - Optional per-ingress default template (useful when sharing routes across sources without extra rules)
 - Template preview and test-send from UI
