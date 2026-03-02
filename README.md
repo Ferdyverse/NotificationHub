@@ -9,6 +9,7 @@ It receives events, normalizes payloads, renders messages via templates, and del
 - Per-ingress authentication via `Authorization: Bearer <secret>` or `?token=<secret>`
 - Adapters: `generic-json` and `generic-text`
 - UI (HTMX + server-rendered templates) for ingresses, routes, templates, rules, and event logs
+- Optional per-ingress default template (useful when sharing routes across sources without extra rules)
 - Template preview and test-send from UI
 - In-memory dedupe window and per-ingress rate limiting
 - SQLite persistence with SQLAlchemy and Alembic migrations
@@ -98,12 +99,48 @@ curl -i -X POST "http://localhost:8080/ingest/<slug>?token=<secret>" \
 
 Successful ingest returns `204 No Content`.
 
+## Discord Full Embeds
+
+You can define full Discord webhook payloads directly in a template:
+
+1. Open a template in the UI.
+2. Fill `Discord Embed JSON Template (optional)` with JSON rendered via Jinja variables.
+3. Use the template on a Discord route.
+
+Accepted shapes:
+
+- Full Discord webhook payload object (for example with `content`, `embeds`, `username`, `avatar_url`)
+- Single embed object (auto-wrapped into `{"embeds": [ ... ]}`)
+- Embed array (auto-wrapped into `{"embeds": [ ... ]}`)
+
+Example:
+
+```json
+{
+  "content": "Build notification",
+  "embeds": [
+    {
+      "title": "{{ title }}",
+      "description": "{{ message }}",
+      "color": 5793266,
+      "fields": [
+        {"name": "Source", "value": "{{ source }}", "inline": true},
+        {"name": "Event", "value": "{{ event }}", "inline": true}
+      ],
+      "footer": {"text": "NotificationHub"},
+      "timestamp": "{{ timestamp }}"
+    }
+  ]
+}
+```
+
 ## Routing Rules
 
 - Rules are sorted by `order`
 - First matching rule wins
 - If no rule matches, NotificationHub falls back to ingress-assigned routes (fan-out)
 - Only active routes are used
+- Template selection order: rule template -> ingress default template -> route template -> global default template
 
 Supported condition types:
 
