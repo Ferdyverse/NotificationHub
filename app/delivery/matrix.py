@@ -50,6 +50,8 @@ def _join_url_candidates(homeserver: str, room_id: str) -> list[str]:
     raw = room_id
     encoded = quote(room_id, safe="")
     return [
+        f"{base}/_matrix/client/v3/rooms/{encoded}/join",
+        f"{base}/_matrix/client/r0/rooms/{encoded}/join",
         f"{base}/_matrix/client/v3/join/{raw}",
         f"{base}/_matrix/client/r0/join/{raw}",
         f"{base}/_matrix/client/v3/join/{encoded}",
@@ -57,12 +59,36 @@ def _join_url_candidates(homeserver: str, room_id: str) -> list[str]:
     ]
 
 
-def _try_auto_join_room(homeserver: str, room_id: str, headers: dict[str, str], timeout: int) -> bool:
+def _send_room_message(
+    homeserver: str,
+    room_id: str,
+    content: dict,
+    headers: dict[str, str],
+    timeout: int,
+) -> httpx.Response:
+    encoded = quote(room_id, safe="")
+    send_url = f"{homeserver.rstrip('/')}/_matrix/client/v3/rooms/{encoded}/send/m.room.message"
+    return httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+
+
+def _try_auto_join_room(
+    homeserver: str,
+    room_id: str,
+    headers: dict[str, str],
+    timeout: int,
+) -> str | None:
     for join_url in _join_url_candidates(homeserver, room_id):
-        join_resp = httpx.post(join_url, headers=headers, timeout=timeout)
+        join_resp = httpx.post(join_url, json={}, headers=headers, timeout=timeout)
         if join_resp.is_success:
-            return True
-    return False
+            try:
+                payload = join_resp.json()
+            except Exception:  # noqa: BLE001
+                payload = {}
+            joined_room_id = payload.get("room_id")
+            if isinstance(joined_room_id, str) and joined_room_id:
+                return joined_room_id
+            return room_id
+    return None
 
 
 def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
@@ -144,15 +170,14 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
                 "msgtype": "m.text",
                 "body": plain_body,
             }
-        send_url = (
-            f"{homeserver.rstrip('/')}/_matrix/client/r0/rooms/{room_id}/send/m.room.message"
-        )
         headers = {"Authorization": f"Bearer {access_token}"}
-        send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+        send_resp = _send_room_message(homeserver, room_id, content, headers, timeout)
         if send_resp.status_code in {403, 404} and auto_join:
-            joined = _try_auto_join_room(homeserver, room_id, headers, timeout)
-            if joined:
-                send_resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+            joined_room_id = _try_auto_join_room(homeserver, room_id, headers, timeout)
+            if joined_room_id:
+                send_resp = _send_room_message(
+                    homeserver, joined_room_id, content, headers, timeout
+                )
         if not send_resp.is_success:
             raise httpx.HTTPStatusError(
                 f"Matrix send failed: {send_resp.status_code} {send_resp.text}",

@@ -131,7 +131,7 @@ def test_deliver_matrix_auto_join_on_forbidden(monkeypatch):
             return DummyResponse(200, {"access_token": "abc"})
         if "/send/m.room.message" in url and calls.count(url) == 1:
             return DummyResponse(403)
-        if "/join/" in url:
+        if "/join" in url:
             return DummyResponse(200, {})
         return DummyResponse(200, {})
 
@@ -145,8 +145,37 @@ def test_deliver_matrix_auto_join_on_forbidden(monkeypatch):
     }
     result = deliver("matrix", config, "Title", "Body")
     assert result.success is True
-    assert any("/join/" in url for url in calls)
+    assert any("/join" in url for url in calls)
     assert sum(1 for url in calls if "/send/m.room.message" in url) == 2
+
+
+def test_deliver_matrix_auto_join_uses_joined_room_id(monkeypatch):
+    calls = []
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        if url.endswith("/login"):
+            return DummyResponse(200, {"access_token": "abc"})
+        if "/send/m.room.message" in url and "%23alias%3Aserver" in url:
+            return DummyResponse(404)
+        if "/join/" in url:
+            return DummyResponse(200, {"room_id": "!joined:server"})
+        if "/send/m.room.message" in url and "%21joined%3Aserver" in url:
+            return DummyResponse(200, {})
+        return DummyResponse(400)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    config = {
+        "homeserver": "https://matrix.invalid",
+        "room_id": "#alias:server",
+        "username": "user",
+        "password": "pass",
+        "auto_join": True,
+    }
+    result = deliver("matrix", config, "Title", "Body")
+    assert result.success is True
+    assert any("%23alias%3Aserver" in url for url in calls if "/send/m.room.message" in url)
+    assert any("%21joined%3Aserver" in url for url in calls if "/send/m.room.message" in url)
 
 
 def test_deliver_email(monkeypatch):
