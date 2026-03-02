@@ -15,6 +15,10 @@ services:
       - UI_BASIC_AUTH_USER=testuser
       - UI_BASIC_AUTH_PASS=test1234
 
+      # Session signing secret (required in production).
+      # Example: openssl rand -hex 32
+      - SESSION_SECRET=change-this-to-a-long-random-secret
+
       # Routing Defaults
       - DEFAULT_DEDUPE_SECONDS=60
       - DEFAULT_RATE_LIMIT_PER_MIN=60
