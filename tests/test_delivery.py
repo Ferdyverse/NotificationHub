@@ -124,13 +124,17 @@ def test_deliver_matrix(monkeypatch):
 
 def test_deliver_matrix_auto_join_on_forbidden(monkeypatch):
     calls = []
+    send_calls = {"count": 0}
 
     def fake_post(url, json=None, headers=None, timeout=None):
         calls.append(url)
         if url.endswith("/login"):
             return DummyResponse(200, {"access_token": "abc"})
-        if "/send/m.room.message" in url and calls.count(url) == 1:
-            return DummyResponse(403)
+        if "/send/m.room.message" in url:
+            send_calls["count"] += 1
+            if send_calls["count"] == 1:
+                return DummyResponse(403)
+            return DummyResponse(200, {})
         if "/join" in url:
             return DummyResponse(200, {})
         return DummyResponse(200, {})
@@ -156,7 +160,9 @@ def test_deliver_matrix_auto_join_uses_joined_room_id(monkeypatch):
         calls.append(url)
         if url.endswith("/login"):
             return DummyResponse(200, {"access_token": "abc"})
-        if "/send/m.room.message" in url and "%23alias%3Aserver" in url:
+        if "/send/m.room.message" in url and (
+            "%23alias%3Aserver" in url or "#alias:server" in url
+        ):
             return DummyResponse(404)
         if "/join/" in url:
             return DummyResponse(200, {"room_id": "!joined:server"})
@@ -176,6 +182,32 @@ def test_deliver_matrix_auto_join_uses_joined_room_id(monkeypatch):
     assert result.success is True
     assert any("%23alias%3Aserver" in url for url in calls if "/send/m.room.message" in url)
     assert any("%21joined%3Aserver" in url for url in calls if "/send/m.room.message" in url)
+
+
+def test_deliver_matrix_send_endpoint_fallback_to_r0(monkeypatch):
+    calls = []
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        if url.endswith("/login"):
+            return DummyResponse(200, {"access_token": "abc"})
+        if "/_matrix/client/v3/rooms/" in url and "/send/m.room.message" in url:
+            return DummyResponse(404)
+        if "/_matrix/client/r0/rooms/" in url and "/send/m.room.message" in url:
+            return DummyResponse(200, {})
+        return DummyResponse(400)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    config = {
+        "homeserver": "https://matrix.invalid",
+        "room_id": "!room:server",
+        "username": "user",
+        "password": "pass",
+    }
+    result = deliver("matrix", config, "Title", "Body")
+    assert result.success is True
+    assert any("/_matrix/client/v3/rooms/" in url for url in calls if "/send/m.room.message" in url)
+    assert any("/_matrix/client/r0/rooms/" in url for url in calls if "/send/m.room.message" in url)
 
 
 def test_deliver_email(monkeypatch):

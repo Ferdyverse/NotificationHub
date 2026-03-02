@@ -66,9 +66,26 @@ def _send_room_message(
     headers: dict[str, str],
     timeout: int,
 ) -> httpx.Response:
+    base = homeserver.rstrip("/")
+    raw = room_id
     encoded = quote(room_id, safe="")
-    send_url = f"{homeserver.rstrip('/')}/_matrix/client/v3/rooms/{encoded}/send/m.room.message"
-    return httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+    send_url_candidates = [
+        f"{base}/_matrix/client/v3/rooms/{encoded}/send/m.room.message",
+        f"{base}/_matrix/client/r0/rooms/{encoded}/send/m.room.message",
+        f"{base}/_matrix/client/v3/rooms/{raw}/send/m.room.message",
+        f"{base}/_matrix/client/r0/rooms/{raw}/send/m.room.message",
+    ]
+    last_resp: httpx.Response | None = None
+    for send_url in send_url_candidates:
+        resp = httpx.post(send_url, json=content, headers=headers, timeout=timeout)
+        last_resp = resp
+        if resp.is_success:
+            return resp
+        if resp.status_code not in {404, 405}:
+            return resp
+    if last_resp is None:
+        raise RuntimeError("No Matrix send endpoint candidates generated")
+    return last_resp
 
 
 def _try_auto_join_room(
