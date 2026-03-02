@@ -44,7 +44,7 @@
     <div class="space-y-3">
       {% for ingress in ingresses %}
         <div class="border border-slate-800 rounded p-3">
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div class="font-semibold">{{ ingress.name }}</div>
               <div class="text-sm text-slate-400">/{{ ingress.slug }}</div>
@@ -55,25 +55,21 @@
                 Default template: {{ ingress.default_template.name if ingress.default_template else "-" }}
               </div>
             </div>
-            <div class="flex gap-2">
-              <a class="px-3 py-2 rounded border border-slate-700 text-emerald-300 inline-flex items-center justify-center" href="/ui/ingresses/{{ ingress.id }}" aria-label="Edit">
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M13.586 3a2 2 0 0 1 2.828 0l.586.586a2 2 0 0 1 0 2.828l-8.5 8.5-3.5.586.586-3.5 8.5-8.5z"/>
-                </svg>
+            <div class="grid grid-cols-2 gap-2 w-full sm:w-56">
+              <a class="px-3 py-2 rounded border border-slate-700 text-emerald-300 text-sm text-center" href="/ui/ingresses/{{ ingress.id }}">
+                Edit
               </a>
-              <form method="post" action="/ui/ingresses/{{ ingress.id }}/toggle">
-                <button class="px-3 py-2 rounded border border-slate-700 text-sm">
+              <form method="post" action="/ui/ingresses/{{ ingress.id }}/toggle" class="w-full">
+                <button class="w-full px-3 py-2 rounded border border-slate-700 text-sm">
                   {{ "Disable" if ingress.is_active else "Enable" }}
                 </button>
               </form>
-              <form method="post" action="/ui/ingresses/{{ ingress.id }}/rotate">
-                <button class="px-3 py-2 rounded border border-slate-700 text-sm">Rotate Secret</button>
+              <form method="post" action="/ui/ingresses/{{ ingress.id }}/rotate" class="w-full">
+                <button class="w-full px-3 py-2 rounded border border-slate-700 text-sm">Rotate Secret</button>
               </form>
-              <form method="post" action="/ui/ingresses/{{ ingress.id }}/delete" onsubmit="return confirm('Delete this ingress?');">
-                <button class="px-3 py-2 rounded border border-rose-700 text-rose-200 inline-flex items-center justify-center" aria-label="Delete">
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path d="M6 7h8l-.7 9H6.7L6 7zM8 4h4l1 1H7l1-1z"/>
-                  </svg>
+              <form method="post" action="/ui/ingresses/{{ ingress.id }}/delete" class="w-full" onsubmit="return confirm('Delete this ingress?');">
+                <button class="w-full px-3 py-2 rounded border border-rose-700 text-rose-200 text-sm">
+                  Delete
                 </button>
               </form>
             </div>
