@@ -432,9 +432,22 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
 
     event.raw = cap_payload(event.raw, settings.max_raw_payload_chars)
 
-    dedupe_key = DedupeCache.build_key(
-        str(ingress.id), event.source, event.event, event.title, event.message
-    )
+    delivery_id = None
+    if event.source == "github":
+        delivery_id = request.headers.get("X-GitHub-Delivery")
+    elif event.source in {"forgejo", "gitea"}:
+        delivery_id = (
+            request.headers.get("X-Forgejo-Delivery")
+            or request.headers.get("X-Gitea-Delivery")
+        )
+    elif event.source == "gitlab":
+        delivery_id = request.headers.get("X-Gitlab-Event-UUID")
+    if delivery_id:
+        dedupe_key = DedupeCache.build_key(str(ingress.id), event.source, delivery_id)
+    else:
+        dedupe_key = DedupeCache.build_key(
+            str(ingress.id), event.source, event.event, event.title, event.message
+        )
     if runtime_dedupe.seen_recently(dedupe_key):
         db.add(build_event_log(ingress, event, "deduped", None))
         db.commit()

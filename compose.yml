@@ -10,7 +10,7 @@ services:
 
       # Database
       - DATABASE_URL=sqlite:////data/app.db
-      - BASE_URL=https://notify.berger-em.net
+      - BASE_URL=http://localhost:8080
 
       # UI Auth (recommended)
       - UI_BASIC_AUTH_USER=testuser
