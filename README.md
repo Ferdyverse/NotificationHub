@@ -1,0 +1,140 @@
+# NotificationHub
+
+NotificationHub is a self-hosted webhook hub with a small web UI.
+It receives events, normalizes payloads, renders messages via templates, and delivers notifications to native targets such as Matrix, Discord, and Email.
+
+## Current Features
+
+- Webhook ingest endpoint: `POST /ingest/{slug}`
+- Per-ingress authentication via `Authorization: Bearer <secret>` or `?token=<secret>`
+- Adapters: `generic-json` and `generic-text`
+- UI (HTMX + server-rendered templates) for ingresses, routes, templates, rules, and event logs
+- Template preview and test-send from UI
+- In-memory dedupe window and per-ingress rate limiting
+- SQLite persistence with SQLAlchemy and Alembic migrations
+
+## Tech Stack
+
+- Python 3.12+
+- FastAPI
+- SQLAlchemy
+- Alembic
+- Jinja2 (sandboxed)
+- HTMX + Tailwind (server-rendered)
+
+## Local Quickstart
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Recommended environment variables:
+
+```bash
+export DATABASE_URL="sqlite:///./data/app.db"
+export BASE_URL="http://localhost:8080"
+export UI_BASIC_AUTH_USER="admin"
+export UI_BASIC_AUTH_PASS="change-me"
+export SESSION_SECRET="please-change-this"
+export DEFAULT_DEDUPE_SECONDS="60"
+export DEFAULT_RATE_LIMIT_PER_MIN="60"
+```
+
+Run migrations and start the app:
+
+```bash
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+```
+
+Useful URLs:
+
+- UI: `http://localhost:8080/ui/ingresses`
+- Health: `http://localhost:8080/health`
+
+## Docker
+
+Build and run locally:
+
+```bash
+docker build -t notificationhub:dev .
+docker run --rm -p 8080:8080 --env-file .env notificationhub:dev
+```
+
+Or use the provided Compose file:
+
+```bash
+docker compose -f compose.yml up -d
+```
+
+## Webhook Usage
+
+JSON example:
+
+```bash
+curl -i -X POST "http://localhost:8080/ingest/<slug>" \
+  -H "Authorization: Bearer <secret>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "generic",
+    "event": "demo.push",
+    "severity": "info",
+    "title": "Demo Event",
+    "message": "Hello NotificationHub",
+    "tags": ["demo"],
+    "entities": {"service": "example"}
+  }'
+```
+
+Text example:
+
+```bash
+curl -i -X POST "http://localhost:8080/ingest/<slug>?token=<secret>" \
+  -H "Content-Type: text/plain" \
+  -d "Plain text payload"
+```
+
+Successful ingest returns `204 No Content`.
+
+## Routing Rules
+
+- Rules are sorted by `order`
+- First matching rule wins
+- If no rule matches, NotificationHub falls back to ingress-assigned routes (fan-out)
+- Only active routes are used
+
+Supported condition types:
+
+- `source_eq`
+- `event_startswith`
+- `severity_eq`
+- `tags_contains`
+- `entity_eq`
+- `always`
+
+## Development
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+Core paths:
+
+- App entrypoint: `app/main.py`
+- Security/auth: `app/security/auth.py`
+- Adapters: `app/adapters/`
+- Routing: `app/routing/rules.py`
+- Template rendering: `app/render/templates.py`
+- Database models: `app/models.py`
+- Migrations: `alembic/`
+
+## License
+
+This project is licensed under **AGPL-3.0-only**.
+
+- Full text: `LICENSE`
+- Attribution notice: `NOTICE`

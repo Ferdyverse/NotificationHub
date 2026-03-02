@@ -1,0 +1,112 @@
+name: Docker build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare image metadata
+        id: meta
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::8}"
+          repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${repo_lc}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute release tag
+        id: release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          git fetch --tags --force
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+          if [ -z "$latest" ]; then
+            next="v1.0.0"
+          else
+            base="${latest#v}"
+            major="${base%%.*}"
+            rest="${base#*.}"
+            minor="${rest%%.*}"
+            patch="${rest#*.}"
+            next="v${major}.${minor}.$((patch + 1))"
+          fi
+          echo "tag=${next}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push release tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists."
+            exit 1
+          fi
+          git tag "${tag}"
+          git push origin "${tag}"
+
+      - name: Create GitHub release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.tag }}
+          generate_release_notes: true
+
+      - name: Prepare Docker tags
+        id: tags
+        shell: bash
+        run: |
+          image="${{ steps.meta.outputs.image }}"
+          short_sha="${{ steps.meta.outputs.short_sha }}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            release_tag="${{ steps.release.outputs.tag }}"
+            {
+              echo "value<<TAGS"
+              echo "${image}:${release_tag}"
+              echo "${image}:sha-${short_sha}"
+              echo "${image}:latest"
+              echo "TAGS"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "value<<TAGS"
+              echo "${image}:sha-${short_sha}"
+              echo "${image}:staging"
+              echo "TAGS"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ steps.tags.outputs.value }}

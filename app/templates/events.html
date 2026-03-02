@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Event Log</h1>
+<form method="get" class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-4 grid md:grid-cols-4 gap-3">
+  <div class="md:col-span-2">
+    <label class="block text-sm text-slate-300">Search (raw)</label>
+    <input name="q" value="{{ request.query_params.get('q','') }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" placeholder="Search raw payload..." />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Status</label>
+    <select name="delivery_status" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
+      <option value="">All</option>
+      {% for status in ["delivered","partial","failed","rate_limited","deduped","sample"] %}
+        <option value="{{ status }}" {% if request.query_params.get('delivery_status') == status %}selected{% endif %}>{{ status }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Ingress</label>
+    <select name="ingress_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
+      <option value="">All</option>
+      {% for ingress in ingresses %}
+        <option value="{{ ingress.id }}" {% if request.query_params.get('ingress_id') == ingress.id|string %}selected{% endif %}>{{ ingress.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="md:col-span-4 flex gap-2">
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Filter</button>
+    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/events">Reset</a>
+  </div>
+</form>
+<div class="space-y-3">
+  {% for log in logs %}
+    <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="flex justify-between">
+        <div>
+          <div class="font-semibold">{{ log.ingress.name if log.ingress else log.title }}</div>
+          <div class="text-xs text-slate-500">
+            Slug: {{ log.ingress.slug if log.ingress else "-" }} • {{ log.created_at }}
+          </div>
+        </div>
+        <div class="text-xs text-slate-400">{{ log.delivery_status }}</div>
+      </div>
+      <div class="mt-2 whitespace-pre-wrap text-sm">{{ log.message }}</div>
+      {% if log.delivery_error %}
+        <div class="text-xs text-rose-300 mt-2">{{ log.delivery_error }}</div>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="text-slate-400">No events logged.</div>
+  {% endfor %}
+</div>
+{% endblock %}

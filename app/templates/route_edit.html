@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Edit Route</h1>
+{% if error %}
+  <div class="mb-4 bg-rose-900/40 border border-rose-700 rounded-lg p-3 text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+{% if flash %}
+  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
+    {{ flash }}
+  </div>
+{% endif %}
+<form method="post" action="/ui/routes/{{ route.id }}" class="space-y-3 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <div>
+    <label class="block text-sm text-slate-300">Name</label>
+    <input name="name" value="{{ route.name }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Route Type</label>
+    <select name="route_type" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required data-route-type>
+      <option value="matrix" {% if route.route_type == "matrix" %}selected{% endif %}>Matrix</option>
+      <option value="discord" {% if route.route_type == "discord" %}selected{% endif %}>Discord</option>
+      <option value="email" {% if route.route_type == "email" %}selected{% endif %}>Email</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Template (optional)</label>
+    <select name="template_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
+      <option value="">Default template</option>
+      {% for template in templates %}
+        <option value="{{ template.id }}" {% if route.template_id == template.id %}selected{% endif %}>{{ template.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="matrix">
+    <div class="text-sm text-slate-300 font-semibold">Matrix</div>
+    <input name="matrix_homeserver" value="{{ route.config.get('homeserver') if route.config }}" placeholder="Homeserver URL" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="matrix_room_id" value="{{ route.config.get('room_id') if route.config }}" placeholder="Room ID" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="matrix_username" value="{{ route.config.get('username') if route.config }}" placeholder="Username" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="matrix_password" type="password" value="{{ route.config.get('password') if route.config }}" placeholder="Password" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="matrix_bearer_token" type="password" value="{{ route.config.get('bearer_token') if route.config }}" placeholder="Bearer Token (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="matrix_markdown" value="true" {% if route.config and route.config.get('markdown') %}checked{% endif %} />
+      Markdown enabled
+    </label>
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="matrix_auto_join" value="true" {% if route.config and route.config.get('auto_join') %}checked{% endif %} />
+      Auto-join room
+    </label>
+  </div>
+  <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="discord">
+    <div class="text-sm text-slate-300 font-semibold">Discord</div>
+    <input name="discord_webhook_url" value="{{ route.config.get('webhook_url') if route.config }}" placeholder="Webhook URL" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="discord_bearer_token" type="password" value="{{ route.config.get('bearer_token') if route.config }}" placeholder="Bearer Token (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+  </div>
+  <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="email">
+    <div class="text-sm text-slate-300 font-semibold">Email</div>
+    <input name="email_smtp_host" value="{{ route.config.get('smtp_host') if route.config }}" placeholder="SMTP Host" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="email_smtp_port" value="{{ route.config.get('smtp_port') if route.config }}" placeholder="SMTP Port" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="email_smtp_tls" value="true" {% if route.config and route.config.get('smtp_tls') %}checked{% endif %} />
+      Use TLS (SMTP_SSL)
+    </label>
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="email_smtp_starttls" value="true" {% if route.config and route.config.get('smtp_starttls') %}checked{% endif %} />
+      Use STARTTLS
+    </label>
+    <input name="email_smtp_username" value="{{ route.config.get('smtp_username') if route.config }}" placeholder="SMTP Username" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="email_smtp_password" type="password" value="{{ route.config.get('smtp_password') if route.config }}" placeholder="SMTP Password" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="email_from_addr" value="{{ route.config.get('from_addr') if route.config }}" placeholder="From Address" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="email_to_addrs" value="{{ route.config.get('to_addrs') if route.config }}" placeholder="To Addresses (comma-separated)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+    <input name="email_subject_prefix" value="{{ route.config.get('subject_prefix') if route.config }}" placeholder="Subject Prefix (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+  </div>
+  <div class="flex gap-3">
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Save</button>
+    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/routes">Back</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  function applyRouteType(root) {
+    const select = root.querySelector('[data-route-type]');
+    const sections = root.querySelectorAll('[data-route-section]');
+    if (!select) return;
+    const value = select.value;
+    sections.forEach((section) => {
+      section.style.display = section.dataset.routeSection === value ? 'block' : 'none';
+    });
+  }
+
+  document.querySelectorAll('form').forEach((form) => {
+    if (!form.querySelector('[data-route-type]')) return;
+    applyRouteType(form);
+    form.addEventListener('change', (event) => {
+      if (event.target && event.target.matches('[data-route-type]')) {
+        applyRouteType(form);
+      }
+    });
+  });
+</script>
+{% endblock %}

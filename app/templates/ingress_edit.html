@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Edit Ingress</h1>
+{% if error %}
+  <div class="mb-4 bg-rose-900/40 border border-rose-700 rounded-lg p-3 text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+{% if flash %}
+  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
+    {{ flash }}
+  </div>
+{% endif %}
+<form method="post" action="/ui/ingresses/{{ ingress.id }}" class="space-y-3 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <div>
+    <label class="block text-sm text-slate-300">Name</label>
+    <input name="name" value="{{ ingress.name }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Slug</label>
+    <input name="slug" value="{{ ingress.slug }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Routes (fan-out)</label>
+    <select name="route_ids" multiple class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 h-32">
+      {% for route in routes %}
+        <option value="{{ route.id }}" {% if route in ingress.routes %}selected{% endif %}>{{ route.name }}</option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-slate-500 mt-1">Hold Ctrl/Cmd to select multiple.</p>
+  </div>
+  <div class="flex gap-3">
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Save</button>
+    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/ingresses">Back</a>
+  </div>
+</form>
+<form method="post" action="/ui/ingresses/{{ ingress.id }}/rotate" class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <h2 class="text-lg font-semibold mb-2">Rotate Secret</h2>
+  <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Rotate</button>
+</form>
+<div class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <h2 class="text-lg font-semibold mb-2">Example curl</h2>
+  <p class="text-xs text-slate-500 mb-2">Replace TOKEN with the ingress secret shown when created or after rotation.</p>
+  <div class="space-y-2 text-xs">
+    <div class="text-slate-400">JSON payload:</div>
+    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ request.base_url }}ingest/{{ ingress.slug }} \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"generic","event":"demo.test","severity":"info","title":"Hello","message":"JSON payload"}'</pre>
+    <div class="text-slate-400">Text payload:</div>
+    <pre class="bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">curl -X POST {{ request.base_url }}ingest/{{ ingress.slug }} \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: text/plain" \
+  --data "Plain text message"</pre>
+  </div>
+</div>
+{% endblock %}

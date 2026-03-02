@@ -1,0 +1,33 @@
+---
+
+services:
+  formatter:
+    image: ghcr.io/ferdyverse/notificationhub:staging
+    container_name: notification-hub
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin
+
+      # Database
+      - DATABASE_URL=sqlite:////data/app.db
+
+      # UI Auth (recommended)
+      - UI_BASIC_AUTH_USER=testuser
+      - UI_BASIC_AUTH_PASS=test1234
+
+      # Routing Defaults
+      - DEFAULT_DEDUPE_SECONDS=60
+      - DEFAULT_RATE_LIMIT_PER_MIN=60
+
+    volumes:
+      - ./data:/data
+
+    ports:
+      - "8080:8080"
+
+    networks:
+      - notify_net
+
+networks:
+  notify_net:
+    driver: bridge

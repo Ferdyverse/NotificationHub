@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Routes</h1>
+{% if error %}
+  <div class="mb-4 bg-rose-900/40 border border-rose-700 rounded-lg p-3 text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+{% if flash %}
+  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
+    {{ flash }}
+  </div>
+{% endif %}
+<div class="grid md:grid-cols-2 gap-6">
+  <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <h2 class="text-lg font-semibold mb-3">Create Route</h2>
+    <form method="post" action="/ui/routes" class="space-y-3">
+      <div>
+        <label class="block text-sm text-slate-300">Name</label>
+        <input name="name" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300">Route Type</label>
+        <select name="route_type" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required data-route-type>
+          <option value="matrix">Matrix</option>
+          <option value="discord">Discord</option>
+          <option value="email">Email</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300">Template (optional)</label>
+        <select name="template_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
+          <option value="">Default template</option>
+          {% for template in templates %}
+            <option value="{{ template.id }}">{{ template.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="matrix">
+        <div class="text-sm text-slate-300 font-semibold">Matrix</div>
+        <input name="matrix_homeserver" placeholder="Homeserver URL" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="matrix_room_id" placeholder="Room ID" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="matrix_username" placeholder="Username" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="matrix_password" type="password" placeholder="Password" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="matrix_bearer_token" type="password" placeholder="Bearer Token (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" name="matrix_markdown" value="true" />
+          Markdown enabled
+        </label>
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" name="matrix_auto_join" value="true" />
+          Auto-join room
+        </label>
+      </div>
+      <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="discord">
+        <div class="text-sm text-slate-300 font-semibold">Discord</div>
+        <input name="discord_webhook_url" placeholder="Webhook URL" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="discord_bearer_token" type="password" placeholder="Bearer Token (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+      </div>
+      <div class="border border-slate-800 rounded p-3 space-y-3" data-route-section="email">
+        <div class="text-sm text-slate-300 font-semibold">Email</div>
+        <input name="email_smtp_host" placeholder="SMTP Host" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="email_smtp_port" placeholder="SMTP Port" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" name="email_smtp_tls" value="true" />
+          Use TLS (SMTP_SSL)
+        </label>
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" name="email_smtp_starttls" value="true" />
+          Use STARTTLS
+        </label>
+        <input name="email_smtp_username" placeholder="SMTP Username" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="email_smtp_password" type="password" placeholder="SMTP Password" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="email_from_addr" placeholder="From Address" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="email_to_addrs" placeholder="To Addresses (comma-separated)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input name="email_subject_prefix" placeholder="Subject Prefix (optional)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+      </div>
+      <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Create</button>
+    </form>
+  </section>
+  <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <h2 class="text-lg font-semibold mb-3">Existing</h2>
+    <div class="space-y-3">
+      {% for route in routes %}
+        <div class="border border-slate-800 rounded p-3">
+          <div class="flex justify-between items-center">
+            <div>
+              <div class="font-semibold">{{ route.name }}</div>
+              <div class="text-xs text-slate-500">Type: {{ route.route_type or "-" }}</div>
+              <div class="text-xs text-slate-500">Template: {{ route.template.name if route.template else "default" }}</div>
+            </div>
+            <div class="flex gap-2 items-center">
+              <a class="px-3 py-2 rounded border border-slate-700 text-emerald-300 inline-flex items-center justify-center" href="/ui/routes/{{ route.id }}" aria-label="Edit">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M13.586 3a2 2 0 0 1 2.828 0l.586.586a2 2 0 0 1 0 2.828l-8.5 8.5-3.5.586.586-3.5 8.5-8.5z"/>
+                </svg>
+              </a>
+              <form method="post" action="/ui/routes/{{ route.id }}/toggle">
+                <button class="px-3 py-2 rounded border border-slate-700 text-sm">
+                  {{ "Disable" if route.is_active else "Enable" }}
+                </button>
+              </form>
+              <form method="post" action="/ui/routes/{{ route.id }}/delete" onsubmit="return confirm('Delete this route?');">
+                <button class="px-3 py-2 rounded border border-rose-700 text-rose-200 inline-flex items-center justify-center" aria-label="Delete">
+                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M6 7h8l-.7 9H6.7L6 7zM8 4h4l1 1H7l1-1z"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="text-slate-400">No routes yet.</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  function applyRouteType(root) {
+    const select = root.querySelector('[data-route-type]');
+    const sections = root.querySelectorAll('[data-route-section]');
+    if (!select) return;
+    const value = select.value;
+    sections.forEach((section) => {
+      section.style.display = section.dataset.routeSection === value ? 'block' : 'none';
+    });
+  }
+
+  document.querySelectorAll('form').forEach((form) => {
+    if (!form.querySelector('[data-route-type]')) return;
+    applyRouteType(form);
+    form.addEventListener('change', (event) => {
+      if (event.target && event.target.matches('[data-route-type]')) {
+        applyRouteType(form);
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Edit Template</h1>
+{% if error %}
+  <div class="mb-4 bg-rose-900/40 border border-rose-700 rounded-lg p-3 text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+{% if flash %}
+  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
+    {{ flash }}
+  </div>
+{% endif %}
+<form method="post" action="/ui/templates/{{ template.id }}" class="space-y-3 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <div>
+    <label class="block text-sm text-slate-300">Name</label>
+    <input name="name" value="{{ template.name }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Title Template</label>
+    <input name="title_template" value="{{ template.title_template or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300">Body</label>
+    <textarea name="body" rows="12" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required>{{ template.body }}</textarea>
+  </div>
+  <label class="flex items-center gap-2 text-sm text-slate-300">
+    <input type="checkbox" name="show_raw" value="true" {% if template.show_raw %}checked{% endif %} />
+    Show raw payload
+  </label>
+  <label class="flex items-center gap-2 text-sm text-slate-300">
+    <input type="checkbox" name="is_default" value="true" {% if template.is_default %}checked{% endif %} />
+    Set as default
+  </label>
+  <div class="flex gap-3">
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Save</button>
+    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/templates/{{ template.id }}/preview">Preview</a>
+  </div>
+</form>
+<form method="post" action="/ui/templates/{{ template.id }}/test-send" class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <h2 class="text-lg font-semibold mb-2">Test Send</h2>
+  <div class="flex flex-wrap items-center gap-3">
+    <label class="text-sm text-slate-300">Route</label>
+    <select name="route_id" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required>
+      {% for route in routes %}
+        <option value="{{ route.id }}">{{ route.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Send</button>
+  </div>
+  <p class="text-xs text-slate-500 mt-2">Uses the most recent event log entry.</p>
+</form>
+<form method="post" action="/ui/templates/{{ template.id }}/sample" class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
+  <h2 class="text-lg font-semibold mb-2">Create Sample Event</h2>
+  <div class="flex flex-wrap items-center gap-3">
+    <label class="text-sm text-slate-300">Ingress</label>
+    <select name="ingress_id" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required>
+      {% for ingress in ingresses %}
+        <option value="{{ ingress.id }}">{{ ingress.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Create Sample</button>
+  </div>
+  <p class="text-xs text-slate-500 mt-2">Adds a sample event to the log for preview and test-send.</p>
+</form>
+{% endblock %}
