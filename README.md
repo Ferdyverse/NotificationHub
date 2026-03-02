@@ -6,7 +6,11 @@ It receives events, normalizes payloads, renders messages via templates, and del
 ## Current Features
 
 - Webhook ingest endpoint: `POST /ingest/{slug}`
-- Per-ingress authentication via `Authorization: Bearer <secret>` or `?token=<secret>`
+- Per-ingress authentication via:
+- `Authorization: Bearer <secret>`
+- `?token=<secret>`
+- `X-Gitlab-Token: <secret>`
+- `X-Hub-Signature-256` / `X-Hub-Signature` (GitHub HMAC signature)
 - Adapters: `generic-json` and `generic-text`
 - UI (HTMX + server-rendered templates) for ingresses, routes, templates, rules, and event logs
 - Optional per-ingress default template (useful when sharing routes across sources without extra rules)
@@ -98,6 +102,12 @@ curl -i -X POST "http://localhost:8080/ingest/<slug>?token=<secret>" \
 ```
 
 Successful ingest returns `204 No Content`.
+
+Authentication notes:
+
+- GitLab can use the webhook secret token directly (`X-Gitlab-Token`).
+- GitHub sends only an HMAC signature header, not the raw secret.
+- Existing ingresses created before signature support may require one secret rotation in the UI so signature verification can be enabled.
 
 ## Discord Full Embeds
 
