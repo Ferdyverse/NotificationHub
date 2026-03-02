@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import hashlib
+import hmac
 import json
 import logging
 import secrets
@@ -252,6 +254,67 @@ def resolve_template_id(matched_rule: Rule | None, ingress: Ingress, route: Rout
     return route.template_id
 
 
+def _extract_signature(header_value: str | None, expected_algo: str) -> str | None:
+    if not header_value:
+        return None
+    parts = header_value.split("=", 1)
+    if len(parts) != 2:
+        return None
+    algo, digest = parts[0].strip().lower(), parts[1].strip()
+    if algo != expected_algo or not digest:
+        return None
+    return digest
+
+
+def _verify_hmac_signature(body: bytes, secret: str | None, digest: str, algorithm: str) -> bool:
+    if not secret:
+        return False
+    if algorithm == "sha256":
+        hasher = hashlib.sha256
+    elif algorithm == "sha1":
+        hasher = hashlib.sha1
+    else:
+        return False
+    expected = hmac.new(secret.encode("utf-8"), body, hasher).hexdigest()
+    return hmac.compare_digest(expected, digest)
+
+
+def _authorize_ingress_request(ingress: Ingress, request: Request, raw_body: bytes) -> tuple[bool, bool]:
+    any_auth_present = False
+    any_auth_valid = False
+
+    auth_header = request.headers.get("Authorization")
+    bearer_token = None
+    if auth_header and auth_header.lower().startswith("bearer "):
+        bearer_token = auth_header.split(" ", 1)[1].strip()
+    if not bearer_token:
+        bearer_token = request.query_params.get("token")
+    if bearer_token:
+        any_auth_present = True
+        if verify_secret(bearer_token, ingress.secret_hash):
+            any_auth_valid = True
+
+    gitlab_token = request.headers.get("X-Gitlab-Token")
+    if gitlab_token:
+        any_auth_present = True
+        if verify_secret(gitlab_token, ingress.secret_hash):
+            any_auth_valid = True
+
+    github_sig_256 = _extract_signature(request.headers.get("X-Hub-Signature-256"), "sha256")
+    if github_sig_256:
+        any_auth_present = True
+        if _verify_hmac_signature(raw_body, ingress.secret_value, github_sig_256, "sha256"):
+            any_auth_valid = True
+
+    github_sig_sha1 = _extract_signature(request.headers.get("X-Hub-Signature"), "sha1")
+    if github_sig_sha1:
+        any_auth_present = True
+        if _verify_hmac_signature(raw_body, ingress.secret_value, github_sig_sha1, "sha1"):
+            any_auth_valid = True
+
+    return any_auth_present, any_auth_valid
+
+
 def enforce_event_log_limit(db: Session):
     max_events = settings.max_events
     if max_events <= 0:
@@ -275,24 +338,26 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     if ingress is None or not ingress.is_active:
         raise HTTPException(status_code=404, detail="Ingress not found")
 
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.lower().startswith("bearer "):
-        token = auth_header.split(" ", 1)[1].strip()
-    if not token:
-        token = request.query_params.get("token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    if not verify_secret(token, ingress.secret_hash):
-        raise HTTPException(status_code=403, detail="Invalid token")
+    raw_body = await request.body()
+    auth_present, auth_valid = _authorize_ingress_request(ingress, request, raw_body)
+    if not auth_present:
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Missing authentication. Provide Authorization bearer token, ?token, "
+                "X-Gitlab-Token, or GitHub signature header."
+            ),
+        )
+    if not auth_valid:
+        raise HTTPException(status_code=403, detail="Invalid token or signature")
 
     content_type = request.headers.get("content-type", "")
     try:
         if "application/json" in content_type:
-            payload = await request.json()
+            payload = json.loads(raw_body)
             event = generic_json.adapt(payload)
         else:
-            payload = (await request.body()).decode("utf-8", errors="replace")
+            payload = raw_body.decode("utf-8", errors="replace")
             event = generic_text.adapt(payload)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid JSON: {exc}") from exc
@@ -427,6 +492,7 @@ async def ui_ingresses_create(
         name=name,
         slug=slug,
         secret_hash=hash_secret(secret),
+        secret_value=secret,
         default_template_id=int(default_template_id) if default_template_id else None,
     )
     if route_ids:
@@ -494,6 +560,7 @@ async def ui_ingresses_rotate(request: Request, ingress_id: int, db: Session = D
         raise HTTPException(status_code=404)
     secret = secrets.token_urlsafe(24)
     ingress.secret_hash = hash_secret(secret)
+    ingress.secret_value = secret
     db.commit()
     request.session["flash"] = "Ingress secret rotated. Copy the secret now."
     return templates.TemplateResponse(

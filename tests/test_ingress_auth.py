@@ -1,44 +1,81 @@
+import hashlib
+import hmac
+from types import SimpleNamespace
+
+from starlette.datastructures import QueryParams
+
+from app.main import _authorize_ingress_request
 from app.security.auth import hash_secret
-from app.models import Ingress, Route
 
 
-def test_ingress_auth_requires_token(client, db_session, monkeypatch):
-    route = Route(name="default", route_type="discord", config={"webhook_url": "https://example.com"})
-    db_session.add(route)
-    db_session.commit()
+def _req(headers: dict[str, str] | None = None, query: str = ""):
+    return SimpleNamespace(headers=headers or {}, query_params=QueryParams(query))
 
-    secret = "supersecret"
-    ingress = Ingress(
-        name="Test",
-        slug="test",
+
+def _ingress(secret: str, with_secret_value: bool = True):
+    return SimpleNamespace(
         secret_hash=hash_secret(secret),
+        secret_value=secret if with_secret_value else None,
     )
-    db_session.add(ingress)
-    ingress.routes = [route]
-    db_session.commit()
 
-    class DummyResult:
-        success = True
-        error = None
 
-    def fake_deliver(*args, **kwargs):
-        return DummyResult()
+def test_auth_missing():
+    present, valid = _authorize_ingress_request(_ingress("s3cr3t"), _req(), b"{}")
+    assert present is False
+    assert valid is False
 
-    monkeypatch.setattr("app.main.deliver", fake_deliver)
 
-    resp = client.post("/ingest/test", json={"hello": "world"})
-    assert resp.status_code == 401
-
-    resp = client.post(
-        "/ingest/test",
-        json={"hello": "world"},
-        headers={"X-Formatter-Token": "wrong"},
+def test_auth_bearer():
+    present, valid = _authorize_ingress_request(
+        _ingress("s3cr3t"),
+        _req(headers={"Authorization": "Bearer s3cr3t"}),
+        b'{"hello":"world"}',
     )
-    assert resp.status_code == 403
+    assert present is True
+    assert valid is True
 
-    resp = client.post(
-        "/ingest/test",
-        json={"hello": "world"},
-        headers={"X-Formatter-Token": secret},
+
+def test_auth_query_token():
+    present, valid = _authorize_ingress_request(
+        _ingress("s3cr3t"),
+        _req(query="token=s3cr3t"),
+        b'{"hello":"world"}',
     )
-    assert resp.status_code == 204
+    assert present is True
+    assert valid is True
+
+
+def test_auth_gitlab_token():
+    present, valid = _authorize_ingress_request(
+        _ingress("s3cr3t"),
+        _req(headers={"X-Gitlab-Token": "s3cr3t"}),
+        b'{"hello":"world"}',
+    )
+    assert present is True
+    assert valid is True
+
+
+def test_auth_github_signature_256():
+    secret = "githubsecret"
+    body = b'{"hello":"github"}'
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    present, valid = _authorize_ingress_request(
+        _ingress(secret),
+        _req(headers={"X-Hub-Signature-256": f"sha256={digest}"}),
+        body,
+    )
+    assert present is True
+    assert valid is True
+
+
+def test_auth_github_signature_fails_without_secret_value():
+    secret = "githubsecret"
+    body = b'{"hello":"github"}'
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    present, valid = _authorize_ingress_request(
+        _ingress(secret, with_secret_value=False),
+        _req(headers={"X-Hub-Signature-256": f"sha256={digest}"}),
+        body,
+    )
+    assert present is True
+    assert valid is False

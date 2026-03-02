@@ -29,6 +29,7 @@ class Ingress(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     secret_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    secret_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     default_route_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("routes.id"), nullable=True
