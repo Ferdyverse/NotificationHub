@@ -53,10 +53,13 @@ render them using templates, then send notifications via native delivery targets
   - delivery/              # delivery clients
   - security/              # token checks, basic auth
   - static/                # css/js
-  - templates/             # HTML templates (UI) + message templates
+- templates/             # HTML templates (UI) + message templates
 - tests/
 - docker/
 - docs/
+  - adapters/            # Adapter documentation + template examples
+
+Note: Whenever a new adapter is added, create/update its documentation in `docs/adapters/`.
 
 ---
 
