@@ -6,7 +6,11 @@ from app.adapters.types import NormalizedEvent
 
 
 def _finalize_message(value: str) -> str:
-    return f"{value.rstrip()}\n"
+    lines = value.rstrip().splitlines()
+    if not lines:
+        return ""
+    # Matrix markdown uses two trailing spaces for a hard line break.
+    return "".join(f"{line.rstrip()}  \n" if line.strip() else "\n" for line in lines)
 
 
 def _severity_for_workflow(conclusion: str | None, status: str | None) -> str:
