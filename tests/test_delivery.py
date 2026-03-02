@@ -9,6 +9,8 @@ class DummyResponse:
     def __init__(self, status_code=200, json_data=None):
         self.status_code = status_code
         self._json = json_data or {}
+        self.text = str(self._json)
+        self.request = None
 
     def raise_for_status(self):
         if self.status_code >= 400:
@@ -20,6 +22,11 @@ class DummyResponse:
     @property
     def is_success(self):
         return self.status_code < 400
+
+
+def _patch_matrix_http(monkeypatch, fake_request):
+    monkeypatch.setattr(httpx, "post", fake_request)
+    monkeypatch.setattr(httpx, "put", fake_request)
 
 
 def test_deliver_discord(monkeypatch):
@@ -110,7 +117,7 @@ def test_deliver_matrix(monkeypatch):
             return DummyResponse(200, {"access_token": "abc"})
         return DummyResponse(200, {})
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    _patch_matrix_http(monkeypatch, fake_post)
     config = {
         "homeserver": "https://matrix.invalid",
         "room_id": "!room:server",
@@ -139,7 +146,7 @@ def test_deliver_matrix_auto_join_on_forbidden(monkeypatch):
             return DummyResponse(200, {})
         return DummyResponse(200, {})
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    _patch_matrix_http(monkeypatch, fake_post)
     config = {
         "homeserver": "https://matrix.invalid",
         "room_id": "!room:server",
@@ -170,7 +177,7 @@ def test_deliver_matrix_auto_join_uses_joined_room_id(monkeypatch):
             return DummyResponse(200, {})
         return DummyResponse(400)
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    _patch_matrix_http(monkeypatch, fake_post)
     config = {
         "homeserver": "https://matrix.invalid",
         "room_id": "#alias:server",
@@ -184,30 +191,35 @@ def test_deliver_matrix_auto_join_uses_joined_room_id(monkeypatch):
     assert any("%21joined%3Aserver" in url for url in calls if "/send/m.room.message" in url)
 
 
-def test_deliver_matrix_send_endpoint_fallback_to_r0(monkeypatch):
+def test_deliver_matrix_relogin_on_unauthorized_bearer(monkeypatch):
     calls = []
+    seen_tokens = []
 
     def fake_post(url, json=None, headers=None, timeout=None):
         calls.append(url)
         if url.endswith("/login"):
-            return DummyResponse(200, {"access_token": "abc"})
-        if "/_matrix/client/v3/rooms/" in url and "/send/m.room.message" in url:
-            return DummyResponse(404)
-        if "/_matrix/client/r0/rooms/" in url and "/send/m.room.message" in url:
+            return DummyResponse(200, {"access_token": "fresh-token"})
+        if "/send/m.room.message" in url:
+            auth = (headers or {}).get("Authorization", "")
+            seen_tokens.append(auth)
+            if auth == "Bearer stale-token":
+                return DummyResponse(401, {"errcode": "M_UNKNOWN_TOKEN"})
             return DummyResponse(200, {})
         return DummyResponse(400)
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    _patch_matrix_http(monkeypatch, fake_post)
     config = {
         "homeserver": "https://matrix.invalid",
         "room_id": "!room:server",
         "username": "user",
         "password": "pass",
+        "bearer_token": "stale-token",
     }
     result = deliver("matrix", config, "Title", "Body")
     assert result.success is True
-    assert any("/_matrix/client/v3/rooms/" in url for url in calls if "/send/m.room.message" in url)
-    assert any("/_matrix/client/r0/rooms/" in url for url in calls if "/send/m.room.message" in url)
+    assert any(url.endswith("/login") for url in calls)
+    assert "Bearer stale-token" in seen_tokens
+    assert "Bearer fresh-token" in seen_tokens
 
 
 def test_deliver_email(monkeypatch):
