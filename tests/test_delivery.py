@@ -122,6 +122,33 @@ def test_deliver_matrix(monkeypatch):
     assert any(url.endswith("/login") for url in calls)
 
 
+def test_deliver_matrix_auto_join_on_forbidden(monkeypatch):
+    calls = []
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        if url.endswith("/login"):
+            return DummyResponse(200, {"access_token": "abc"})
+        if "/send/m.room.message" in url and calls.count(url) == 1:
+            return DummyResponse(403)
+        if "/join/" in url:
+            return DummyResponse(200, {})
+        return DummyResponse(200, {})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    config = {
+        "homeserver": "https://matrix.invalid",
+        "room_id": "!room:server",
+        "username": "user",
+        "password": "pass",
+        "auto_join": True,
+    }
+    result = deliver("matrix", config, "Title", "Body")
+    assert result.success is True
+    assert any("/join/" in url for url in calls)
+    assert sum(1 for url in calls if "/send/m.room.message" in url) == 2
+
+
 def test_deliver_email(monkeypatch):
     sent = {}
 
