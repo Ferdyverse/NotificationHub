@@ -5,6 +5,10 @@ from typing import Any
 from app.adapters.types import NormalizedEvent
 
 
+def _finalize_message(value: str) -> str:
+    return f"{value.rstrip()}\n"
+
+
 def _severity_for_workflow(conclusion: str | None, status: str | None) -> str:
     if conclusion == "success":
         return "success"
@@ -31,7 +35,7 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
             event=f"github.{github_event or 'unknown'}",
             severity="info",
             title="GitHub Event",
-            message=str(payload),
+            message=_finalize_message(str(payload)),
             raw=payload,
         ).with_timestamp()
 
@@ -143,7 +147,7 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
         event=f"github.{event_name}",
         severity=severity,
         title=title,
-        message=message,
+        message=_finalize_message(message),
         tags=_build_tags(event_name, str(action) if action is not None else None),
         entities=entities,
         raw=payload,
