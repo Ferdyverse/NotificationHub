@@ -10,6 +10,7 @@ services:
 
       # Database
       - DATABASE_URL=sqlite:////data/app.db
+      - BACKUP_DIR=/data
       - BASE_URL=http://localhost:8080
 
       # UI Auth (recommended)

@@ -31,34 +31,34 @@ If the payload is **not** an object, a generic event is created:
 
 Examples:
 
-- `{{ event.source }}`
-- `{{ event.event }}`
-- `{{ event.severity }}`
-- `{{ event.title }}`
-- `{{ event.message }}`
-- `{{ event.tags }}`
-- `{{ event.entities }}`
-- `{{ event.raw }}`
+- `{{ source }}`
+- `{{ event }}`
+- `{{ severity }}`
+- `{{ title }}`
+- `{{ message }}`
+- `{{ tags }}`
+- `{{ entities }}`
+- `{{ raw }}`
 
 ## Example Templates
 
 Simple:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Source: {{ event.source }}
-Event: {{ event.event }}
-Title: {{ event.title|default("-") }}
+Source: {{ source }}
+Event: {{ event }}
+Title: {{ title|default("-") }}
 ```
 
 With entities/tags:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title|default("Generic Event") }}
+{{ status_icon(severity) }} {{ title|default("Generic Event") }}
 
-Source: {{ event.source }}
-Event: {{ event.event }}
-Tags: {{ event.tags|default([]) }}
-Entities: {{ event.entities|default({}) }}
+Source: {{ source }}
+Event: {{ event }}
+Tags: {{ tags|default([]) }}
+Entities: {{ entities|default({}) }}
 ```

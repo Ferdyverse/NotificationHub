@@ -17,7 +17,14 @@ Every adapter returns a NormalizedEvent with these fields:
 - `raw` (original payload, possibly truncated)
 - `timestamp` (ISO8601, set server-side)
 
-Templates access these fields as `{{ event.source }}` or `{{ event.entities.repo }}`.
+Templates access these fields directly, for example `{{ source }}` or `{{ entities.repo }}`.
+
+Important:
+
+- `message` is plain text (`str`), not an object.
+- Do not use `{{ message.entities.repo }}`.
+- Use `{{ entities.repo }}` for structured fields.
+- Do not prefix with `event.` (`{{ event.source }}` is invalid in this app).
 
 ## Adapters
 

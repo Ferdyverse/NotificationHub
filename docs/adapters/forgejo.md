@@ -56,70 +56,70 @@ Specific events:
 
 Examples:
 
-- `{{ event.source }}`
-- `{{ event.event }}`
-- `{{ event.title }}`
-- `{{ event.message }}`
-- `{{ event.entities.repo }}`
-- `{{ event.entities.actor }}`
-- `{{ event.entities.url }}`
+- `{{ source }}`
+- `{{ event }}`
+- `{{ title }}`
+- `{{ message }}`
+- `{{ entities.repo }}`
+- `{{ entities.actor }}`
+- `{{ entities.url }}`
 
 ## Example Templates
 
 Generic:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Actor: {{ event.entities.actor|default("-") }}
-Link: {{ event.entities.url|default("-") }}
-Event: {{ event.event }}
+Repository: {{ entities.repo|default("-") }}
+Actor: {{ entities.actor|default("-") }}
+Link: {{ entities.url|default("-") }}
+Event: {{ event }}
 ```
 
 Combined (choose by event):
 
 ```jinja
-{% if event.event in ["forgejo.push", "gitea.push"] %}
-{{ status_icon(event.severity) }} {{ event.title }}
+{% if event in ["forgejo.push", "gitea.push"] %}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Branch: {{ event.entities.branch|default("-") }}
-Commits: {{ event.entities.commit_count|default(0) }}
-Compare: {{ event.entities.url|default("-") }}
-{% elif event.event in ["forgejo.issue", "forgejo.issues", "gitea.issue", "gitea.issues"] %}
-{{ status_icon(event.severity) }} {{ event.title }}
+Repository: {{ entities.repo|default("-") }}
+Branch: {{ entities.branch|default("-") }}
+Commits: {{ entities.commit_count|default(0) }}
+Compare: {{ entities.url|default("-") }}
+{% elif event in ["forgejo.issue", "forgejo.issues", "gitea.issue", "gitea.issues"] %}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-State: {{ event.entities.issue_state|default("-") }}
-Link: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+State: {{ entities.issue_state|default("-") }}
+Link: {{ entities.url|default("-") }}
 {% else %}
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Actor: {{ event.entities.actor|default("-") }}
-Link: {{ event.entities.url|default("-") }}
-Event: {{ event.event }}
+Repository: {{ entities.repo|default("-") }}
+Actor: {{ entities.actor|default("-") }}
+Link: {{ entities.url|default("-") }}
+Event: {{ event }}
 {% endif %}
 ```
 
 Push focused:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title }}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Branch: {{ event.entities.branch|default("-") }}
-Commits: {{ event.entities.commit_count|default(0) }}
-Compare: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+Branch: {{ entities.branch|default("-") }}
+Commits: {{ entities.commit_count|default(0) }}
+Compare: {{ entities.url|default("-") }}
 ```
 
 Issue focused:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title }}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-State: {{ event.entities.issue_state|default("-") }}
-Link: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+State: {{ entities.issue_state|default("-") }}
+Link: {{ entities.url|default("-") }}
 ```

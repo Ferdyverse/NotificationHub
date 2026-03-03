@@ -47,74 +47,74 @@ Specific events:
 
 Examples:
 
-- `{{ event.source }}`
-- `{{ event.event }}`
-- `{{ event.title }}`
-- `{{ event.message }}`
-- `{{ event.entities.repo }}`
-- `{{ event.entities.actor }}`
-- `{{ event.entities.url }}`
+- `{{ source }}`
+- `{{ event }}`
+- `{{ title }}`
+- `{{ message }}`
+- `{{ entities.repo }}`
+- `{{ entities.actor }}`
+- `{{ entities.url }}`
 
 ## Example Templates
 
 Generic:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Actor: {{ event.entities.actor|default("-") }}
-Link: {{ event.entities.url|default("-") }}
-Event: {{ event.event }}
+Repository: {{ entities.repo|default("-") }}
+Actor: {{ entities.actor|default("-") }}
+Link: {{ entities.url|default("-") }}
+Event: {{ event }}
 ```
 
 Combined (choose by event):
 
 ```jinja
-{% if event.event == "github.workflow_run" %}
-{{ status_icon(event.severity) }} {{ event.title }}
+{% if event == "github.workflow_run" %}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Branch: {{ event.entities.branch|default("-") }}
-Status: {{ event.entities.workflow_status|default("-") }}
-Conclusion: {{ event.entities.workflow_conclusion|default("-") }}
-Run: {{ event.entities.url|default("-") }}
-{% elif event.event == "github.pull_request" %}
-{{ status_icon(event.severity) }} {{ event.title }}
+Repository: {{ entities.repo|default("-") }}
+Branch: {{ entities.branch|default("-") }}
+Status: {{ entities.workflow_status|default("-") }}
+Conclusion: {{ entities.workflow_conclusion|default("-") }}
+Run: {{ entities.url|default("-") }}
+{% elif event == "github.pull_request" %}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-State: {{ event.entities.pr_state|default("-") }}
-Merged: {{ event.entities.pr_merged|default(false) }}
-Link: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+State: {{ entities.pr_state|default("-") }}
+Merged: {{ entities.pr_merged|default(false) }}
+Link: {{ entities.url|default("-") }}
 {% else %}
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Actor: {{ event.entities.actor|default("-") }}
-Link: {{ event.entities.url|default("-") }}
-Event: {{ event.event }}
+Repository: {{ entities.repo|default("-") }}
+Actor: {{ entities.actor|default("-") }}
+Link: {{ entities.url|default("-") }}
+Event: {{ event }}
 {% endif %}
 ```
 
 Workflow run focused:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title }}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-Branch: {{ event.entities.branch|default("-") }}
-Status: {{ event.entities.workflow_status|default("-") }}
-Conclusion: {{ event.entities.workflow_conclusion|default("-") }}
-Run: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+Branch: {{ entities.branch|default("-") }}
+Status: {{ entities.workflow_status|default("-") }}
+Conclusion: {{ entities.workflow_conclusion|default("-") }}
+Run: {{ entities.url|default("-") }}
 ```
 
 Pull request focused:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title }}
+{{ status_icon(severity) }} {{ title }}
 
-Repository: {{ event.entities.repo|default("-") }}
-State: {{ event.entities.pr_state|default("-") }}
-Merged: {{ event.entities.pr_merged|default(false) }}
-Link: {{ event.entities.url|default("-") }}
+Repository: {{ entities.repo|default("-") }}
+State: {{ entities.pr_state|default("-") }}
+Merged: {{ entities.pr_merged|default(false) }}
+Link: {{ entities.url|default("-") }}
 ```

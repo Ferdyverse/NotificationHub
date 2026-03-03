@@ -111,7 +111,7 @@ def restore_backup(database_url: str, backup_path: Path, force: bool = False) ->
 
 def _default_backup_path() -> Path:
     timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    return Path("backups") / f"notificationhub-{timestamp}.tar.gz"
+    return Path("/data") / f"notificationhub-{timestamp}.tar.gz"
 
 
 def main() -> int:

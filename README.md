@@ -46,7 +46,7 @@ export UI_BASIC_AUTH_PASS="change-me"
 export SESSION_SECRET="please-change-this"
 export DEFAULT_DEDUPE_SECONDS="60"
 export DEFAULT_RATE_LIMIT_PER_MIN="60"
-export BACKUP_DIR="./backups"
+export BACKUP_DIR="/data"
 ```
 
 Run migrations and start the app:
@@ -88,19 +88,19 @@ python -m app.tools.backup --help
 Create a backup archive:
 
 ```bash
-python -m app.tools.backup create --output backups/notificationhub-prod.tar.gz
+python -m app.tools.backup create --output /data/notificationhub-prod.tar.gz
 ```
 
 Restore a backup archive:
 
 ```bash
-python -m app.tools.backup restore --input backups/notificationhub-prod.tar.gz --force
+python -m app.tools.backup restore --input /data/notificationhub-prod.tar.gz --force
 ```
 
 Production with Docker Compose (example):
 
 ```bash
-docker compose exec notificationhub python -m app.tools.backup create --output /data/backup/notificationhub-prod.tar.gz
+docker compose exec notificationhub python -m app.tools.backup create --output /data/notificationhub-prod.tar.gz
 ```
 
 Then copy the archive from your production host to your test PC and restore it there.
@@ -148,6 +148,14 @@ You can define full Discord webhook payloads directly in a template:
 1. Open a template in the UI.
 2. Fill `Discord Embed JSON Template (optional)` with JSON rendered via Jinja variables.
 3. Use the template on a Discord route.
+
+Template context (important):
+
+- Available fields are direct variables: `source`, `event`, `severity`, `title`, `message`, `tags`, `entities`, `raw`, `timestamp`.
+- `message` is a string.
+- Use `entities` for structured data.
+- Wrong: `{{ message.entities.repo }}`
+- Correct: `{{ entities.repo }}`
 
 Accepted shapes:
 

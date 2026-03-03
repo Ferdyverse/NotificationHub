@@ -15,28 +15,28 @@ Used when the request is **not** JSON (for example `text/plain`).
 
 ## Template Fields
 
-- `{{ event.source }}`
-- `{{ event.event }}`
-- `{{ event.severity }}`
-- `{{ event.title }}`
-- `{{ event.message }}`
-- `{{ event.raw }}`
+- `{{ source }}`
+- `{{ event }}`
+- `{{ severity }}`
+- `{{ title }}`
+- `{{ message }}`
+- `{{ raw }}`
 
 ## Example Templates
 
 Simple:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.message }}
+{{ status_icon(severity) }} {{ message }}
 
-Source: {{ event.source }}
-Event: {{ event.event }}
-Title: {{ event.title|default("-") }}
+Source: {{ source }}
+Event: {{ event }}
+Title: {{ title|default("-") }}
 ```
 
 Compact:
 
 ```jinja
-{{ status_icon(event.severity) }} {{ event.title }}
-{{ event.message }}
+{{ status_icon(severity) }} {{ title }}
+{{ message }}
 ```

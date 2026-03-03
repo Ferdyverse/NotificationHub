@@ -26,6 +26,7 @@ from app.adapters import forgejo, generic_json, generic_text, github
 from app.adapters.types import NormalizedEvent
 from app.config import settings
 from app.db import SessionLocal, get_session
+from app.delivery.base import DeliveryResult
 from app.delivery.dispatcher import deliver
 from app.models import EventLog, Ingress, Route, Template
 from app.render.templates import DEFAULT_TEMPLATE_BODY, render_template
@@ -535,9 +536,21 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         template = db.get(Template, template_id) if template_id else None
         if template is None:
             template = load_default_template(db)
-        rendered_title, rendered, discord_payload_json = render_notification_content(
-            template, context, event.raw
-        )
+        try:
+            rendered_title, rendered, discord_payload_json = render_notification_content(
+                template, context, event.raw
+            )
+        except Exception as exc:  # noqa: BLE001
+            error_message = f"Template render failed: {exc}"
+            log_info(
+                "template_render_failed",
+                ingress_id=ingress.id,
+                route_id=route.id,
+                template_id=template.id if template.id else None,
+                error=str(exc),
+            )
+            results.append((route, DeliveryResult(False, "failed", error_message)))
+            continue
         extra = {
             "discord_payload_json": discord_payload_json,
         }
