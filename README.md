@@ -46,7 +46,7 @@ export UI_BASIC_AUTH_PASS="change-me"
 export SESSION_SECRET="please-change-this"
 export DEFAULT_DEDUPE_SECONDS="60"
 export DEFAULT_RATE_LIMIT_PER_MIN="60"
-export BACKUP_DIR="/data"
+export BACKUP_DIR="/data/backups"
 ```
 
 Run migrations and start the app:
@@ -81,6 +81,9 @@ docker compose -f compose.yml up -d
 
 NotificationHub includes a built-in backup tool for SQLite databases:
 
+Default backup directory is `/data/backups`.
+Set `BACKUP_DIR` to use a different writable directory.
+
 ```bash
 python -m app.tools.backup --help
 ```
@@ -88,19 +91,24 @@ python -m app.tools.backup --help
 Create a backup archive:
 
 ```bash
-python -m app.tools.backup create --output /data/notificationhub-prod.tar.gz
+python -m app.tools.backup create --output /data/backups/notificationhub-prod.tar.gz
 ```
 
 Restore a backup archive:
 
 ```bash
-python -m app.tools.backup restore --input /data/notificationhub-prod.tar.gz --force
+python -m app.tools.backup restore --input /data/backups/notificationhub-prod.tar.gz --force
 ```
+
+You can also manage backups via the UI:
+
+- Open `http://localhost:8080/ui/backups`
+- Create, upload, download, and restore `.tar.gz` backup archives
 
 Production with Docker Compose (example):
 
 ```bash
-docker compose exec notificationhub python -m app.tools.backup create --output /data/notificationhub-prod.tar.gz
+docker compose exec notificationhub python -m app.tools.backup create --output /data/backups/notificationhub-prod.tar.gz
 ```
 
 Then copy the archive from your production host to your test PC and restore it there.
