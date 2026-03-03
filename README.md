@@ -13,7 +13,7 @@ It receives events, normalizes payloads, renders messages via templates, and del
 - `X-Hub-Signature-256` / `X-Hub-Signature` (GitHub HMAC signature)
 - `X-Gitea-Signature` / `X-Forgejo-Signature` (Gitea/Forgejo HMAC signature)
 - Adapters: `generic-json`, `generic-text`, `github` (auto-detected via `X-GitHub-Event`), and `forgejo`/`gitea` (auto-detected via `X-Forgejo-Event` or `X-Gitea-Event`)
-- UI (HTMX + server-rendered templates) for ingresses, routes, templates, and event logs
+- UI (HTMX + server-rendered templates) for ingresses, routes, templates, event logs, and backups
 - Optional per-ingress default template (useful when sharing routes across sources)
 - Template preview and test-send from UI
 - In-memory dedupe window and per-ingress rate limiting
@@ -46,6 +46,7 @@ export UI_BASIC_AUTH_PASS="change-me"
 export SESSION_SECRET="please-change-this"
 export DEFAULT_DEDUPE_SECONDS="60"
 export DEFAULT_RATE_LIMIT_PER_MIN="60"
+export BACKUP_DIR="./backups"
 ```
 
 Run migrations and start the app:
@@ -58,6 +59,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 Useful URLs:
 
 - UI: `http://localhost:8080/ui/ingresses`
+- Backups UI: `http://localhost:8080/ui/backups`
 - Health: `http://localhost:8080/health`
 
 ## Docker

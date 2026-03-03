@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -85,6 +86,12 @@ class Template(Base):
 class EventLog(Base):
     __tablename__ = "event_logs"
     __allow_unmapped__ = True
+    __table_args__ = (
+        Index("ix_event_logs_created_at", "created_at"),
+        Index("ix_event_logs_ingress_id", "ingress_id"),
+        Index("ix_event_logs_delivery_status", "delivery_status"),
+        Index("ix_event_logs_source", "source"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ingress_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingresses.id"))

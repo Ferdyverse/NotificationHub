@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from jinja2 import StrictUndefined, Undefined
 from jinja2.sandbox import SandboxedEnvironment
 
 from app.adapters.types import STATUS_ICONS
@@ -9,7 +10,8 @@ DEFAULT_TEMPLATE_BODY = """This template will only show the full JSON-payload, s
 
 
 def build_env(strict: bool = False) -> SandboxedEnvironment:
-    env = SandboxedEnvironment()
+    undefined_cls = StrictUndefined if strict else Undefined
+    env = SandboxedEnvironment(undefined=undefined_cls)
     env.globals["status_icon"] = lambda value: STATUS_ICONS.get(value, "ℹ️")
     return env
 

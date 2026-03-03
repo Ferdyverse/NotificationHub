@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 import hashlib
 import hmac
 import json
 import logging
+from pathlib import Path
+import re
 import secrets
 import time
 from typing import Any
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.adapters import forgejo, generic_json, generic_text, github
@@ -28,6 +31,7 @@ from app.models import EventLog, Ingress, Route, Template
 from app.render.templates import DEFAULT_TEMPLATE_BODY, render_template
 from app.runtime import DedupeCache, RateLimiter
 from app.security.auth import hash_secret, require_ui_basic_auth, verify_secret
+from app.tools.backup import create_backup
 from app.utils import cap_payload
 
 
@@ -53,9 +57,53 @@ runtime_rate = RateLimiter(settings.default_rate_limit_per_min)
 
 logger = logging.getLogger("formatter")
 
+EVENTS_PAGE_SIZE = 50
+EVENT_SEVERITY_OPTIONS = ("success", "info", "warning", "error")
+DELIVERY_STATUS_OPTIONS = (
+    "delivered",
+    "partial",
+    "failed",
+    "rate_limited",
+    "deduped",
+    "sample",
+)
+BACKUP_FILENAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+\.tar\.gz$")
+
 
 def log_info(message: str, **fields):
     logger.info("%s %s", message, fields)
+
+
+def resolve_backup_dir() -> Path:
+    path = Path(settings.backup_dir)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return path.resolve()
+
+
+def build_backup_filename() -> str:
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    return f"notificationhub-{timestamp}.tar.gz"
+
+
+def list_backup_files(backup_dir: Path) -> list[dict[str, Any]]:
+    if not backup_dir.exists():
+        return []
+
+    backups: list[dict[str, Any]] = []
+    for file_path in backup_dir.iterdir():
+        if not file_path.is_file() or not BACKUP_FILENAME_PATTERN.match(file_path.name):
+            continue
+        stat = file_path.stat()
+        backups.append(
+            {
+                "name": file_path.name,
+                "size": stat.st_size,
+                "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+            }
+        )
+    backups.sort(key=lambda item: item["modified_at"], reverse=True)
+    return backups
 
 
 def maybe_persist_matrix_token(route: Route, result_meta: dict | None):
@@ -354,12 +402,8 @@ def _authorize_ingress_request(
         ):
             any_auth_valid = True
 
-    gitea_sig = _normalize_plain_signature(
-        request.headers.get("X-Gitea-Signature")
-    )
-    forgejo_sig = _normalize_plain_signature(
-        request.headers.get("X-Forgejo-Signature")
-    )
+    gitea_sig = _normalize_plain_signature(request.headers.get("X-Gitea-Signature"))
+    forgejo_sig = _normalize_plain_signature(request.headers.get("X-Forgejo-Signature"))
     for signature in (gitea_sig, forgejo_sig):
         if signature:
             any_auth_present = True
@@ -419,7 +463,9 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
             github_event = request.headers.get("X-GitHub-Event")
             if forgejo_event or gitea_event:
                 source = "forgejo" if forgejo_event else "gitea"
-                event = forgejo.adapt(payload, forgejo_event or gitea_event, source=source)
+                event = forgejo.adapt(
+                    payload, forgejo_event or gitea_event, source=source
+                )
             elif github_event:
                 event = github.adapt(payload, github_event)
             else:
@@ -436,9 +482,8 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
     if event.source == "github":
         delivery_id = request.headers.get("X-GitHub-Delivery")
     elif event.source in {"forgejo", "gitea"}:
-        delivery_id = (
-            request.headers.get("X-Forgejo-Delivery")
-            or request.headers.get("X-Gitea-Delivery")
+        delivery_id = request.headers.get("X-Forgejo-Delivery") or request.headers.get(
+            "X-Gitea-Delivery"
         )
     elif event.source == "gitlab":
         delivery_id = request.headers.get("X-Gitlab-Event-UUID")
@@ -1244,20 +1289,177 @@ async def health():
 async def ui_events(
     request: Request,
     q: str | None = None,
-    ingress_id: str | None = None,
+    ingress_id: int | None = Query(default=None, ge=1),
     delivery_status: str | None = None,
+    source: str | None = None,
+    severity: str | None = None,
+    event: str | None = None,
+    page: int = Query(default=1, ge=1),
     db: Session = Depends(get_session),
 ):
-    query = select(EventLog).order_by(EventLog.created_at.desc())
-    if ingress_id:
-        query = query.where(EventLog.ingress_id == int(ingress_id))
+    def _normalize(value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+    q = _normalize(q)
+    delivery_status = _normalize(delivery_status)
+    source = _normalize(source)
+    severity = _normalize(severity)
+    event = _normalize(event)
+
+    if delivery_status and delivery_status not in DELIVERY_STATUS_OPTIONS:
+        raise HTTPException(status_code=422, detail="Invalid delivery_status filter")
+    if severity and severity not in EVENT_SEVERITY_OPTIONS:
+        raise HTTPException(status_code=422, detail="Invalid severity filter")
+
+    filters: list[Any] = []
+    if ingress_id is not None:
+        filters.append(EventLog.ingress_id == ingress_id)
     if delivery_status:
-        query = query.where(EventLog.delivery_status == delivery_status)
+        filters.append(EventLog.delivery_status == delivery_status)
+    if source:
+        filters.append(EventLog.source.ilike(f"%{source}%"))
+    if severity:
+        filters.append(EventLog.severity == severity)
+    if event:
+        filters.append(EventLog.event.ilike(f"%{event}%"))
     if q:
-        query = query.where(cast(EventLog.raw, String).ilike(f"%{q}%"))
-    logs = db.scalars(query.limit(200)).all()
-    ingresses = db.scalars(select(Ingress)).all()
+        search_pattern = f"%{q}%"
+        filters.append(
+            or_(
+                EventLog.title.ilike(search_pattern),
+                EventLog.message.ilike(search_pattern),
+                EventLog.source.ilike(search_pattern),
+                EventLog.event.ilike(search_pattern),
+                cast(EventLog.raw, String).ilike(search_pattern),
+            )
+        )
+
+    count_query = select(func.count()).select_from(EventLog)
+    if filters:
+        count_query = count_query.where(*filters)
+    total = int(db.scalar(count_query) or 0)
+    total_pages = max((total - 1) // EVENTS_PAGE_SIZE + 1, 1)
+    if total > 0 and page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * EVENTS_PAGE_SIZE
+    query = (
+        select(EventLog)
+        .options(selectinload(EventLog.ingress))
+        .order_by(EventLog.created_at.desc(), EventLog.id.desc())
+        .offset(offset)
+        .limit(EVENTS_PAGE_SIZE)
+    )
+    if filters:
+        query = query.where(*filters)
+
+    logs = db.scalars(query).all()
+    ingresses = db.scalars(select(Ingress).order_by(Ingress.name.asc())).all()
+    start_index = offset + 1 if total > 0 else 0
+    end_index = offset + len(logs)
+    selected_filters = {
+        "q": q or "",
+        "ingress_id": str(ingress_id) if ingress_id is not None else "",
+        "delivery_status": delivery_status or "",
+        "source": source or "",
+        "severity": severity or "",
+        "event": event or "",
+    }
     return templates.TemplateResponse(
         "events.html",
-        {"request": request, "logs": logs, "ingresses": ingresses},
+        {
+            "request": request,
+            "logs": logs,
+            "ingresses": ingresses,
+            "delivery_status_options": DELIVERY_STATUS_OPTIONS,
+            "severity_options": EVENT_SEVERITY_OPTIONS,
+            "filters": selected_filters,
+            "page": page,
+            "total": total,
+            "total_pages": total_pages,
+            "start_index": start_index,
+            "end_index": end_index,
+            "has_prev": page > 1,
+            "has_next": page < total_pages,
+        },
+    )
+
+
+@app.get(
+    "/ui/backups",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
+async def ui_backups(
+    request: Request,
+    created: str | None = None,
+):
+    backup_dir = resolve_backup_dir()
+    backups = list_backup_files(backup_dir)
+    created_name = (
+        created if created and BACKUP_FILENAME_PATTERN.match(created) else None
+    )
+    return templates.TemplateResponse(
+        "backups.html",
+        {
+            "request": request,
+            "backups": backups,
+            "created": created_name,
+            "backup_dir": str(backup_dir),
+        },
+    )
+
+
+@app.post(
+    "/ui/backups/create",
+    dependencies=[Depends(require_ui_basic_auth)],
+)
+async def ui_backups_create(
+    filename: str | None = Form(default=None),
+):
+    name = filename.strip() if filename else ""
+    if not name:
+        name = build_backup_filename()
+    if not BACKUP_FILENAME_PATTERN.match(name):
+        raise HTTPException(
+            status_code=422,
+            detail="Filename must end with .tar.gz and only use letters, numbers, dot, dash or underscore.",
+        )
+
+    backup_dir = resolve_backup_dir()
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = (backup_dir / name).resolve()
+    if not backup_path.is_relative_to(backup_dir):
+        raise HTTPException(status_code=400, detail="Invalid backup target path")
+    if backup_path.exists():
+        raise HTTPException(status_code=409, detail="Backup file already exists")
+
+    try:
+        create_backup(settings.database_url, backup_path)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return RedirectResponse(f"/ui/backups?created={name}", status_code=303)
+
+
+@app.get(
+    "/ui/backups/{filename}",
+    dependencies=[Depends(require_ui_basic_auth)],
+)
+async def ui_backups_download(filename: str):
+    if not BACKUP_FILENAME_PATTERN.match(filename):
+        raise HTTPException(status_code=404, detail="Backup file not found")
+
+    backup_dir = resolve_backup_dir()
+    backup_path = (backup_dir / filename).resolve()
+    if not backup_path.is_relative_to(backup_dir) or not backup_path.is_file():
+        raise HTTPException(status_code=404, detail="Backup file not found")
+
+    return FileResponse(
+        path=backup_path,
+        media_type="application/gzip",
+        filename=backup_path.name,
     )

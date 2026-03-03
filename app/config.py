@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/app.db"
     base_url: str = "http://localhost:8080"
+    backup_dir: str = "./backups"
 
     ui_basic_auth_user: str | None = None
     ui_basic_auth_pass: str | None = None

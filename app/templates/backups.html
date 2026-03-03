@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Backups</h1>
+
+<div class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-4">
+  <h2 class="text-lg font-semibold mb-2">Create Backup</h2>
+  <p class="text-sm text-slate-400 mb-3">
+    Creates a SQLite snapshot archive in <span class="text-slate-200">{{ backup_dir }}</span>.
+  </p>
+  <form method="post" action="/ui/backups/create" class="flex flex-col md:flex-row gap-3 md:items-end">
+    <div class="flex-1">
+      <label class="block text-sm text-slate-300">Filename (optional)</label>
+      <input
+        name="filename"
+        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
+        placeholder="notificationhub-YYYYMMDD-HHMMSS.tar.gz"
+      />
+      <p class="text-xs text-slate-500 mt-1">Allowed: letters, numbers, dot, dash, underscore, suffix <code>.tar.gz</code>.</p>
+    </div>
+    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Create Backup</button>
+  </form>
+</div>
+
+{% if created %}
+  <div class="bg-emerald-900/30 border border-emerald-800 text-emerald-200 rounded-lg p-3 mb-4 text-sm">
+    Backup created: {{ created }}
+    <a class="underline ml-2" href="/ui/backups/{{ created }}">Download</a>
+  </div>
+{% endif %}
+
+<div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+  <div class="px-4 py-3 border-b border-slate-800 font-semibold">Available Backups</div>
+  {% if backups %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-slate-400 border-b border-slate-800">
+          <tr>
+            <th class="text-left p-3 font-medium">Filename</th>
+            <th class="text-left p-3 font-medium">Modified (UTC)</th>
+            <th class="text-left p-3 font-medium">Size (bytes)</th>
+            <th class="text-left p-3 font-medium">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in backups %}
+            <tr class="border-b border-slate-800/70">
+              <td class="p-3 font-mono text-xs">{{ item.name }}</td>
+              <td class="p-3 text-slate-300">{{ item.modified_at }}</td>
+              <td class="p-3 text-slate-300">{{ item.size }}</td>
+              <td class="p-3">
+                <a class="px-3 py-2 rounded border border-slate-700 text-emerald-300 inline-flex items-center justify-center" href="/ui/backups/{{ item.name }}">
+                  Download
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="p-4 text-slate-400">No backups found yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

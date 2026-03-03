@@ -132,18 +132,14 @@ def adapt(payload: Any, event: str | None, source: str = "forgejo") -> Normalize
             }
         )
     elif event_name in {"issues", "issue"}:
-        issue = (
-            payload.get("issue") if isinstance(payload.get("issue"), dict) else {}
-        )
+        issue = payload.get("issue") if isinstance(payload.get("issue"), dict) else {}
         number = _number_from(issue)
         issue_title = issue.get("title") or "issue"
         issue_action = str(action or "")
         if issue_action == "closed":
             severity = "success"
         title = (
-            f"Issue #{number} {issue_title}"
-            if number is not None
-            else str(issue_title)
+            f"Issue #{number} {issue_title}" if number is not None else str(issue_title)
         )
         message = (
             f"Repository: {repo_name}\n"
@@ -159,17 +155,13 @@ def adapt(payload: Any, event: str | None, source: str = "forgejo") -> Normalize
             }
         )
     elif event_name.startswith("issue_comment"):
-        issue = (
-            payload.get("issue") if isinstance(payload.get("issue"), dict) else {}
-        )
+        issue = payload.get("issue") if isinstance(payload.get("issue"), dict) else {}
         comment = (
             payload.get("comment") if isinstance(payload.get("comment"), dict) else {}
         )
         number = _number_from(issue)
         commenter = _actor_name(comment.get("user") or {}) if comment else "unknown"
-        title = (
-            f"Comment on #{number}" if number is not None else "Issue Comment"
-        )
+        title = f"Comment on #{number}" if number is not None else "Issue Comment"
         message = (
             f"Repository: {repo_name}\n"
             f"Issue: {issue.get('title') or '-'}\n"
@@ -195,7 +187,9 @@ def adapt(payload: Any, event: str | None, source: str = "forgejo") -> Normalize
             f"Target: {release.get('target_commitish') or '-'}\n"
             f"URL: {release.get('html_url') or release.get('url') or '-'}"
         )
-        entities.update({"url": release.get("html_url") or release.get("url"), "tag": tag})
+        entities.update(
+            {"url": release.get("html_url") or release.get("url"), "tag": tag}
+        )
     else:
         action_label = f" ({action})" if action else ""
         title = f"{source.title()} {event_name}{action_label}"
@@ -209,7 +203,9 @@ def adapt(payload: Any, event: str | None, source: str = "forgejo") -> Normalize
         severity=severity,
         title=title,
         message=_finalize_message(message),
-        tags=_build_tags(source, event_name, str(action) if action is not None else None),
+        tags=_build_tags(
+            source, event_name, str(action) if action is not None else None
+        ),
         entities=entities,
         raw=payload,
     ).with_timestamp()
