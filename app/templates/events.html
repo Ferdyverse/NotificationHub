@@ -79,7 +79,7 @@
 
     <details class="bg-slate-900 border border-slate-800 rounded-lg group">
       <summary class="list-none cursor-pointer p-4">
-        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <div class="min-w-0">
             <div class="font-semibold truncate">{{ log.title }}</div>
             <div class="text-xs text-slate-500 mt-1">
@@ -87,10 +87,14 @@
             </div>
             <div class="mt-2 text-sm text-slate-300 truncate">{{ log.message | replace('\n', ' ') | truncate(180, True, '...') }}</div>
           </div>
-          <div class="flex flex-wrap items-center gap-2 text-xs md:justify-end">
-            <span class="px-2 py-1 rounded border {{ severity_class }}">{{ severity_icon }} {{ log.severity }}</span>
-            <span class="px-2 py-1 rounded border {{ status_class }}">{{ log.delivery_status }}</span>
-            <span class="px-2 py-1 rounded border border-slate-700 bg-slate-800/40">{{ log.source }} / {{ log.event }}</span>
+          <div class="flex flex-col gap-2 text-xs md:items-end md:min-w-[22rem] md:flex-none">
+            <div class="flex flex-wrap items-center gap-2 md:justify-end">
+              <span class="px-2 py-1 rounded border {{ severity_class }}">{{ severity_icon }} {{ log.severity }}</span>
+              <span class="px-2 py-1 rounded border {{ status_class }}">{{ log.delivery_status }}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 md:justify-end">
+              <span class="max-w-full truncate px-2 py-1 rounded border border-slate-700 bg-slate-800/40">{{ log.source }} / {{ log.event }}</span>
+            </div>
           </div>
         </div>
       </summary>
