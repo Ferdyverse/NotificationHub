@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -51,11 +52,43 @@ def load_default_template(db: Session) -> Template:
     )
 
 
+def extract_client_ip(request: Request) -> str | None:
+    """Extract client IP from request, considering X-Forwarded-For header.
+
+    Tries in order:
+    1. X-Forwarded-For header (first IP if comma-separated)
+    2. X-Real-IP header
+    3. request.client.host
+    """
+    try:
+        # Check X-Forwarded-For (used by proxies/load balancers)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Take first IP if comma-separated list
+            ip = forwarded_for.split(",")[0].strip()
+            if ip:
+                return ip
+
+        # Check X-Real-IP
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip
+
+        # Fall back to direct connection IP
+        if request.client:
+            return request.client.host
+    except Exception:  # Catch any unexpected errors
+        pass
+
+    return None
+
+
 def build_event_log(
     ingress: Ingress,
     event: NormalizedEvent,
     status: str,
     error: str | None,
+    request_ip: str | None = None,
 ):
     return EventLog(
         ingress_id=ingress.id,
@@ -67,6 +100,7 @@ def build_event_log(
         tags=event.tags,
         entities=event.entities,
         raw=event.raw,
+        request_ip=request_ip,
         delivery_status=status,
         delivery_error=error,
     )

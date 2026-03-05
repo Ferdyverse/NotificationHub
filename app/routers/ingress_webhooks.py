@@ -15,6 +15,7 @@ from app.web_shared import (
     build_event_log,
     build_template_context,
     enforce_event_log_limit,
+    extract_client_ip,
     load_default_template,
     log_info,
     maybe_persist_matrix_token,
@@ -34,6 +35,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
         raise HTTPException(status_code=404, detail="Ingress not found")
 
     raw_body = await request.body()
+    client_ip = extract_client_ip(request)
     auth_present, auth_valid = _authorize_ingress_request(ingress, request, raw_body)
     if not auth_present:
         raise HTTPException(
@@ -51,7 +53,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
 
     dedupe_key = build_dedupe_key(ingress, event, request)
     if runtime_dedupe.seen_recently(dedupe_key):
-        db.add(build_event_log(ingress, event, "deduped", None))
+        db.add(build_event_log(ingress, event, "deduped", None, request_ip=client_ip))
         db.commit()
         enforce_event_log_limit(db)
         log_info(
@@ -64,7 +66,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
 
     rate_key = f"ingress:{ingress.id}"
     if not runtime_rate.allow(rate_key):
-        db.add(build_event_log(ingress, event, "rate_limited", "rate limit exceeded"))
+        db.add(build_event_log(ingress, event, "rate_limited", "rate limit exceeded", request_ip=client_ip))
         db.commit()
         enforce_event_log_limit(db)
         log_info("event_rate_limited", ingress_id=ingress.id)
@@ -72,7 +74,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
 
     routes_to_send = [r for r in ingress.routes if r and r.is_active]
     if not routes_to_send:
-        db.add(build_event_log(ingress, event, "failed", "No active route"))
+        db.add(build_event_log(ingress, event, "failed", "No active route", request_ip=client_ip))
         db.commit()
         enforce_event_log_limit(db)
         log_info("event_no_route", ingress_id=ingress.id, source=event.source)
@@ -135,7 +137,7 @@ async def ingest(slug: str, request: Request, db: Session = Depends(get_session)
             [f"{route.id}:{result.error}" for route, result in results if result.error]
         )
 
-    db.add(build_event_log(ingress, event, status, error))
+    db.add(build_event_log(ingress, event, status, error, request_ip=client_ip))
     db.commit()
     enforce_event_log_limit(db)
 

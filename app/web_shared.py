@@ -30,6 +30,7 @@ from app.web.template_helpers import (
     build_event_log,
     build_template_context,
     ensure_defaults,
+    extract_client_ip,
     load_default_template,
     render_notification_content,
     resolve_template_id,
@@ -64,4 +65,5 @@ __all__ = [
     "build_dedupe_key",
     "enforce_event_log_limit",
     "normalized_search_filters",
+    "extract_client_ip",
 ]
