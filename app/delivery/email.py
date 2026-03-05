@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from app.config import settings
 from app.delivery.base import DeliveryResult, with_retries
+
+logger = logging.getLogger("notificationhub.email")
 
 
 def deliver_email(config: dict, title: str, body: str) -> DeliveryResult:
@@ -47,5 +50,14 @@ def deliver_email(config: dict, title: str, body: str) -> DeliveryResult:
 
     try:
         return with_retries(_send)
-    except Exception as exc:  # noqa: BLE001
+    except smtplib.SMTPException as exc:
+        logger.error(
+            "email_delivery_failed",
+            extra={
+                "to_addrs": to_addrs,
+                "host": host,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
+        )
         return DeliveryResult(False, "failed", str(exc))

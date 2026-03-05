@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
+
 import httpx
 
 from app.config import settings
 from app.delivery.base import DeliveryResult, bearer_headers, with_retries
+
+logger = logging.getLogger("notificationhub.discord")
 
 
 def _parse_embed_color(value: object) -> int | None:
@@ -107,5 +111,13 @@ def deliver_discord(
 
     try:
         return with_retries(_send)
-    except Exception as exc:  # noqa: BLE001
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.error(
+            "discord_delivery_failed",
+            extra={
+                "webhook_url": webhook_url[:50] if webhook_url else None,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
+        )
         return DeliveryResult(False, "failed", str(exc))
