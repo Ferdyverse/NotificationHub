@@ -741,6 +741,11 @@ nav .nav-brand:hover {
 .space-y-6 > * + * { margin-top: 1.5rem; }
 
 /* ===== RESPONSIVE ===== */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 767px) {
   h1 {
     font-size: 1.875rem;

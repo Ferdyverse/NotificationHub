@@ -66,6 +66,7 @@
     <h2 class="mb-4">📋 Existing Templates</h2>
     {% if templates %}
     <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="table-responsive">
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
@@ -100,6 +101,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
     {% else %}
       <div class="empty-state">
