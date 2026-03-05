@@ -32,6 +32,7 @@ async def ui_ingresses(request: Request, db: Session = Depends(get_session)):
         "ingresses.html",
         {
             "request": request,
+            "base_url": settings.base_url,
             "ingresses": ingresses,
             "routes": routes,
             "templates": template_list,

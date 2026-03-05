@@ -45,7 +45,7 @@
       {% for ingress in ingresses %}
         <div class="border border-slate-800 rounded p-3">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+            <div class="flex-1">
               <div class="font-semibold">{{ ingress.name }}</div>
               <div class="text-sm text-slate-400">/{{ ingress.slug }}</div>
               <div class="text-xs text-slate-500">
@@ -53,6 +53,17 @@
               </div>
               <div class="text-xs text-slate-500">
                 Default template: {{ ingress.default_template.name if ingress.default_template else "-" }}
+              </div>
+              <div class="mt-2 bg-slate-800 rounded px-2 py-1 text-xs text-slate-300 flex items-center justify-between gap-2 max-w-md overflow-hidden">
+                <code class="truncate">{{ base_url }}/ingest/{{ ingress.slug }}</code>
+                <button
+                  type="button"
+                  class="text-slate-400 hover:text-emerald-300 transition-colors text-xs whitespace-nowrap"
+                  onclick="copyToClipboard('{{ base_url }}/ingest/{{ ingress.slug }}', this)"
+                  title="Copy webhook URL"
+                >
+                  📋 Copy
+                </button>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2 w-full sm:w-56">
@@ -82,4 +93,20 @@
     </div>
   </section>
 </div>
+
+<script>
+function copyToClipboard(text, button) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = button.textContent;
+    button.textContent = '✓ Copied!';
+    button.classList.add('text-emerald-300');
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('text-emerald-300');
+    }, 2000);
+  }).catch(() => {
+    alert('Failed to copy to clipboard');
+  });
+}
+</script>
 {% endblock %}
