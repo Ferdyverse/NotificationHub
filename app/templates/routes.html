@@ -38,6 +38,7 @@
             <option value="matrix">Matrix</option>
             <option value="discord">Discord</option>
             <option value="email">Email</option>
+            <option value="telegram">Telegram</option>
           </select>
         </div>
 
@@ -135,6 +136,30 @@
           <div class="form-group">
             <input name="email_subject_prefix" placeholder="Subject Prefix (optional)" />
           </div>
+        </div>
+
+        <!-- Telegram Section -->
+        <div class="card-header" data-route-section="telegram" style="display:none; border: none; padding: 0.5rem 0; margin: 0.5rem 0;">
+          <h3 style="margin: 0;">Telegram Configuration</h3>
+        </div>
+        <div class="space-y-3" data-route-section="telegram" style="display:none;">
+          <div class="form-group">
+            <input name="telegram_bot_token" type="password" placeholder="Bot Token (from @BotFather)" />
+          </div>
+          <div class="form-group">
+            <input name="telegram_chat_id" placeholder="Chat ID (e.g., -1001234567890)" />
+          </div>
+          <div class="form-group">
+            <select name="telegram_parse_mode">
+              <option value="">No formatting</option>
+              <option value="HTML">HTML</option>
+              <option value="MarkdownV2">MarkdownV2</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="telegram_disable_web_page_preview" value="true" />
+            <span>Disable web page preview</span>
+          </label>
         </div>
 
         <button class="btn-primary btn-block">Create Route</button>

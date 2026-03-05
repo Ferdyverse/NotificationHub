@@ -93,6 +93,10 @@ async def ui_routes_create(
     email_from_addr: str | None = Form(None),
     email_to_addrs: str | None = Form(None),
     email_subject_prefix: str | None = Form(None),
+    telegram_bot_token: str | None = Form(None),
+    telegram_chat_id: str | None = Form(None),
+    telegram_parse_mode: str | None = Form(None),
+    telegram_disable_web_page_preview: str | None = Form(None),
     db: Session = Depends(get_session),
 ):
     config = build_route_config(
@@ -117,6 +121,10 @@ async def ui_routes_create(
         email_from_addr,
         email_to_addrs,
         email_subject_prefix,
+        telegram_bot_token,
+        telegram_chat_id,
+        telegram_parse_mode,
+        telegram_disable_web_page_preview,
     )
     error = validate_route_config(route_type, config)
     if error:
@@ -177,6 +185,10 @@ async def ui_routes_update(
     email_from_addr: str | None = Form(None),
     email_to_addrs: str | None = Form(None),
     email_subject_prefix: str | None = Form(None),
+    telegram_bot_token: str | None = Form(None),
+    telegram_chat_id: str | None = Form(None),
+    telegram_parse_mode: str | None = Form(None),
+    telegram_disable_web_page_preview: str | None = Form(None),
     db: Session = Depends(get_session),
 ):
     route = db.get(Route, route_id)
@@ -204,6 +216,10 @@ async def ui_routes_update(
         email_from_addr,
         email_to_addrs,
         email_subject_prefix,
+        telegram_bot_token,
+        telegram_chat_id,
+        telegram_parse_mode,
+        telegram_disable_web_page_preview,
     )
     error = validate_route_config(route_type, config)
     if error:

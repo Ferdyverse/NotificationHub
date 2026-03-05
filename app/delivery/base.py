@@ -66,6 +66,8 @@ def with_retries(fn):
             if attempt < attempts - 1:
                 delay = backoff * (2**attempt)
                 time.sleep(delay)
+    if last_exc is not None:
+        raise last_exc
 
 def bearer_headers(config: dict | None) -> dict[str, str]:
     if not config:

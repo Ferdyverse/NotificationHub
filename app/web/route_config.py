@@ -47,6 +47,10 @@ def build_route_config(
     email_from_addr: str | None,
     email_to_addrs: str | None,
     email_subject_prefix: str | None,
+    telegram_bot_token: str | None = None,
+    telegram_chat_id: str | None = None,
+    telegram_parse_mode: str | None = None,
+    telegram_disable_web_page_preview: str | None = None,
 ) -> dict[str, Any]:
     if route_type == "matrix":
         return {
@@ -77,6 +81,13 @@ def build_route_config(
             "to_addrs": email_to_addrs,
             "subject_prefix": email_subject_prefix,
         }
+    if route_type == "telegram":
+        return {
+            "bot_token": telegram_bot_token,
+            "chat_id": telegram_chat_id,
+            "parse_mode": telegram_parse_mode or None,
+            "disable_web_page_preview": bool(telegram_disable_web_page_preview),
+        }
     return {}
 
 
@@ -95,6 +106,9 @@ def validate_route_config(route_type: str, config: dict[str, Any]) -> str | None
             return "Email requires SMTP host and port."
         if not config.get("from_addr") or not config.get("to_addrs"):
             return "Email requires from/to addresses."
+    elif route_type == "telegram":
+        if not config.get("bot_token") or not config.get("chat_id"):
+            return "Telegram requires a bot token and chat ID."
     else:
         return "Unsupported route type."
     return None

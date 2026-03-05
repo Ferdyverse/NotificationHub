@@ -120,12 +120,16 @@ class RouteCreateRequest(BaseModel):
     email_from_addr: Optional[str] = Field(None)
     email_to_addrs: Optional[str] = Field(None)
     email_subject_prefix: Optional[str] = Field(None)
+    telegram_bot_token: Optional[str] = Field(None)
+    telegram_chat_id: Optional[str] = Field(None)
+    telegram_parse_mode: Optional[str] = Field(None)
+    telegram_disable_web_page_preview: Optional[bool] = Field(None)
 
     @validator("route_type")
     def validate_route_type(cls, v):
         """Ensure route type is valid."""
-        if v not in ("matrix", "discord", "email"):
-            raise ValueError("route_type must be one of: matrix, discord, email")
+        if v not in ("matrix", "discord", "email", "telegram"):
+            raise ValueError("route_type must be one of: matrix, discord, email, telegram")
         return v
 
     def get_config_for_type(self) -> dict:
@@ -159,6 +163,13 @@ class RouteCreateRequest(BaseModel):
                 "from_addr": self.email_from_addr,
                 "to_addrs": self.email_to_addrs,
                 "subject_prefix": self.email_subject_prefix,
+            }
+        elif self.route_type == "telegram":
+            return {
+                "bot_token": self.telegram_bot_token,
+                "chat_id": self.telegram_chat_id,
+                "parse_mode": self.telegram_parse_mode or None,
+                "disable_web_page_preview": self.telegram_disable_web_page_preview or False,
             }
         return {}
 

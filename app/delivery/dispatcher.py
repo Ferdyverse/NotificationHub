@@ -4,6 +4,7 @@ from app.delivery.base import DeliveryResult
 from app.delivery.discord import deliver_discord
 from app.delivery.email import deliver_email
 from app.delivery.matrix import deliver_matrix
+from app.delivery.telegram import deliver_telegram
 
 
 def deliver(
@@ -22,4 +23,6 @@ def deliver(
         return deliver_discord(config, title, body, extra=extra)
     if route_type == "email":
         return deliver_email(config, title, body)
+    if route_type == "telegram":
+        return deliver_telegram(config, title, body)
     return DeliveryResult(False, "failed", f"Unsupported route type: {route_type}")
