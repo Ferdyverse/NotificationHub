@@ -63,9 +63,15 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
     expires_in_ms: int | None = None
     issued_via_login = False
 
+    token_expires_at = config.get("token_expires_at")
+    persisted_token_valid = (
+        bearer_token
+        and (token_expires_at is None or time.time() < float(token_expires_at))
+    )
+
     def _send():
         nonlocal access_token, expires_in_ms, issued_via_login
-        access_token = bearer_token
+        access_token = bearer_token if persisted_token_valid else None
         if not access_token:
             cached = _get_cached_token(homeserver, username)
             if cached:

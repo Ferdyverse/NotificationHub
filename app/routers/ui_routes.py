@@ -256,10 +256,13 @@ async def ui_routes_duplicate(
     route = db.get(Route, route_id)
     if not route:
         raise HTTPException(status_code=404)
+    config_copy = dict(route.config) if route.config else {}
+    config_copy.pop("bearer_token", None)
+    config_copy.pop("token_expires_at", None)
     copy = Route(
         name=f"{route.name} (Copy)",
         route_type=route.route_type,
-        config=dict(route.config) if route.config else {},
+        config=config_copy,
         template_id=route.template_id,
     )
     db.add(copy)
