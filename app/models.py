@@ -105,6 +105,7 @@ class EventLog(Base):
     tags: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     entities: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     raw: Mapped[Optional[Any]] = mapped_column(JSON, nullable=True)
+    request_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
 
     delivery_status: Mapped[str] = mapped_column(String(20), nullable=False)
     delivery_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
