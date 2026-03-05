@@ -65,7 +65,8 @@
   <section class="lg:col-span-2">
     <h2 class="mb-4">📋 Existing Templates</h2>
     {% if templates %}
-    <div class="card" style="padding: 0; overflow: hidden;">
+    <!-- Desktop table -->
+    <div class="card desktop-only" style="padding: 0; overflow: hidden;">
       <div class="table-responsive">
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
@@ -102,6 +103,30 @@
         </tbody>
       </table>
       </div>
+    </div>
+    <!-- Mobile cards -->
+    <div class="card mobile-only" style="padding: 0; overflow: hidden;">
+      {% for template in templates %}
+      <div class="list-card-item">
+        <div style="min-width: 0;">
+          <div style="font-weight: 600; font-size: 0.95rem;">{{ template.name }}</div>
+          {% if template.is_default %}
+          <div class="list-card-meta">
+            <span class="badge badge-success" style="font-size: 0.68rem;">⭐ Default</span>
+          </div>
+          {% endif %}
+        </div>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0;">
+          <a class="btn btn-secondary" href="/ui/templates/{{ template.id }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">✏️</a>
+          <form method="post" action="/ui/templates/{{ template.id }}/duplicate" style="margin:0;">
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" title="Duplicate">📋</button>
+          </form>
+          <form method="post" action="/ui/templates/{{ template.id }}/delete" style="margin:0;" {% if template.is_default %}style="opacity: 0.5; pointer-events: none;"{% else %}onsubmit="return confirm('Delete this template? This cannot be undone.');"{% endif %}>
+            <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" {% if template.is_default %}disabled{% endif %}>🗑️</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
     </div>
     {% else %}
       <div class="empty-state">

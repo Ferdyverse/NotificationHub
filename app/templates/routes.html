@@ -175,14 +175,15 @@
   <section class="lg:col-span-2">
     <h2 class="mb-4">📤 Existing Destinations</h2>
     {% if routes %}
-    <div class="card" style="padding: 0; overflow: hidden;">
+    <!-- Desktop table -->
+    <div class="card desktop-only" style="padding: 0; overflow: hidden;">
       <div class="table-responsive">
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Name</th>
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Type</th>
-            <th class="col-mobile-hidden" style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Template</th>
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Template</th>
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Status</th>
             <th style="padding: 0.6rem 1rem;"></th>
           </tr>
@@ -194,7 +195,7 @@
             <td style="padding: 0.75rem 1rem; vertical-align: middle;">
               <code style="font-size: 0.75rem; color: var(--text-muted); background: none; border: none; padding: 0;">{{ route.route_type | upper }}</code>
             </td>
-            <td class="col-mobile-hidden" style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">{{ route.template.name if route.template else "default" }}</td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">{{ route.template.name if route.template else "default" }}</td>
             <td style="padding: 0.75rem 1rem; vertical-align: middle;">
               <span class="badge {% if route.is_active %}badge-success{% else %}badge-slate{% endif %}" style="font-size: 0.72rem;">
                 {{ "🟢 Active" if route.is_active else "⚪ Inactive" }}
@@ -219,6 +220,32 @@
         </tbody>
       </table>
       </div>
+    </div>
+    <!-- Mobile cards -->
+    <div class="card mobile-only" style="padding: 0; overflow: hidden;">
+      {% for route in routes %}
+      <div class="list-card-item">
+        <div style="min-width: 0;">
+          <div style="font-weight: 600; font-size: 0.95rem;">{{ route.name }}</div>
+          <div class="list-card-meta">
+            <code style="font-size: 0.7rem; color: var(--text-muted); background: none; border: none; padding: 0;">{{ route.route_type | upper }}</code>
+            <span class="badge {% if route.is_active %}badge-success{% else %}badge-slate{% endif %}" style="font-size: 0.68rem;">{{ "🟢 Active" if route.is_active else "⚪ Inactive" }}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0;">
+          <a class="btn btn-secondary" href="/ui/routes/{{ route.id }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">✏️</a>
+          <form method="post" action="/ui/routes/{{ route.id }}/duplicate" style="margin:0;">
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" title="Duplicate">📋</button>
+          </form>
+          <form method="post" action="/ui/routes/{{ route.id }}/toggle" style="margin:0;">
+            <button class="btn {{ 'btn-amber' if route.is_active else 'btn-success' }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">{{ "⏸" if route.is_active else "▶" }}</button>
+          </form>
+          <form method="post" action="/ui/routes/{{ route.id }}/delete" style="margin:0;" onsubmit="return confirm('Delete this destination? This cannot be undone.');">
+            <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">🗑️</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
     </div>
     {% else %}
       <div class="empty-state">
