@@ -751,7 +751,8 @@ nav .nav-brand:hover {
     font-size: 1.875rem;
   }
 
-  .hidden-mobile {
+  .hidden-mobile,
+  .col-mobile-hidden {
     display: none;
   }
 

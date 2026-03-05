@@ -61,8 +61,8 @@
         <thead>
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Name</th>
-            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Destinations</th>
-            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Webhook URL</th>
+            <th class="col-mobile-hidden" style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Destinations</th>
+            <th class="col-mobile-hidden" style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Webhook URL</th>
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Status</th>
             <th style="padding: 0.6rem 1rem;"></th>
           </tr>
@@ -73,14 +73,14 @@
             <td style="padding: 0.75rem 1rem; vertical-align: middle;">
               <span style="font-weight: 600; font-size: 0.95rem;">{{ ingress.name }}</span>
             </td>
-            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">
+            <td class="col-mobile-hidden" style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">
               {% if ingress.routes %}
                 {{ ingress.routes | map(attribute='name') | join(', ') }}
               {% else %}
                 <span style="font-style: italic;">—</span>
               {% endif %}
             </td>
-            <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+            <td class="col-mobile-hidden" style="padding: 0.75rem 1rem; vertical-align: middle;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
                 <code style="font-size: 0.72rem; color: var(--text-muted); background: none; border: none; padding: 0;">/ingest/{{ ingress.slug }}</code>
                 <button type="button" style="flex-shrink: 0; font-size: 0.65rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(16,185,129,0.15); color: #6ee7b7; border: none; cursor: pointer;" onclick="copyToClipboard('{{ base_url }}/ingest/{{ ingress.slug }}', this)" title="Copy webhook URL">📋</button>

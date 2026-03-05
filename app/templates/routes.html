@@ -182,7 +182,7 @@
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Name</th>
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Type</th>
-            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Template</th>
+            <th class="col-mobile-hidden" style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Template</th>
             <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Status</th>
             <th style="padding: 0.6rem 1rem;"></th>
           </tr>
@@ -194,7 +194,7 @@
             <td style="padding: 0.75rem 1rem; vertical-align: middle;">
               <code style="font-size: 0.75rem; color: var(--text-muted); background: none; border: none; padding: 0;">{{ route.route_type | upper }}</code>
             </td>
-            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">{{ route.template.name if route.template else "default" }}</td>
+            <td class="col-mobile-hidden" style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">{{ route.template.name if route.template else "default" }}</td>
             <td style="padding: 0.75rem 1rem; vertical-align: middle;">
               <span class="badge {% if route.is_active %}badge-success{% else %}badge-slate{% endif %}" style="font-size: 0.72rem;">
                 {{ "🟢 Active" if route.is_active else "⚪ Inactive" }}
