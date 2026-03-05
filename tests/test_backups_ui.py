@@ -29,13 +29,13 @@ def _request(path: str = "/ui/backups") -> Request:
 
 @pytest.mark.anyio
 async def test_ui_backup_create_and_download(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
 
     def _fake_create_backup(database_url: str, output_path):
         output_path.write_bytes(b"backup-data")
         return output_path
 
-    monkeypatch.setattr("app.main.create_backup", _fake_create_backup)
+    monkeypatch.setattr("app.routers.ui_backups.create_backup", _fake_create_backup)
 
     response = await ui_backups_create(filename=None)
     assert response.status_code == 303
@@ -60,7 +60,7 @@ async def test_ui_backup_create_and_download(monkeypatch, tmp_path):
 
 @pytest.mark.anyio
 async def test_ui_backup_create_rejects_invalid_filename(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
 
     with pytest.raises(HTTPException) as exc:
         await ui_backups_create(filename="../not-allowed.tar.gz")
@@ -71,7 +71,7 @@ async def test_ui_backup_create_rejects_invalid_filename(monkeypatch, tmp_path):
 
 @pytest.mark.anyio
 async def test_ui_backup_restore_success(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
     archive_name = "notificationhub-20260303-100000.tar.gz"
     archive_path = tmp_path / archive_name
     archive_path.write_bytes(b"archive")
@@ -87,8 +87,8 @@ async def test_ui_backup_restore_success(monkeypatch, tmp_path):
         assert force is True
         return tmp_path / "app.db"
 
-    monkeypatch.setattr("app.main.engine.dispose", _fake_dispose)
-    monkeypatch.setattr("app.main.restore_backup", _fake_restore)
+    monkeypatch.setattr("app.routers.ui_backups.engine.dispose", _fake_dispose)
+    monkeypatch.setattr("app.routers.ui_backups.restore_backup", _fake_restore)
 
     response = await ui_backups_restore(filename=archive_name)
     assert response.status_code == 303
@@ -99,7 +99,7 @@ async def test_ui_backup_restore_success(monkeypatch, tmp_path):
 
 @pytest.mark.anyio
 async def test_ui_backup_restore_missing_file_returns_404(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
 
     with pytest.raises(HTTPException) as exc:
         await ui_backups_restore(filename="notificationhub-20260303-100000.tar.gz")
@@ -110,7 +110,7 @@ async def test_ui_backup_restore_missing_file_returns_404(monkeypatch, tmp_path)
 
 @pytest.mark.anyio
 async def test_ui_backup_upload_success(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
     filename = "notificationhub-20260303-120000.tar.gz"
     upload = UploadFile(filename=filename, file=BytesIO(b"archive-content"))
 
@@ -128,7 +128,7 @@ async def test_ui_backup_upload_success(monkeypatch, tmp_path):
 
 @pytest.mark.anyio
 async def test_ui_backup_upload_rejects_invalid_filename(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.main.settings.backup_dir", str(tmp_path))
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", str(tmp_path))
     upload = UploadFile(filename="backup.txt", file=BytesIO(b"archive-content"))
 
     with pytest.raises(HTTPException) as exc:
@@ -140,7 +140,7 @@ async def test_ui_backup_upload_rejects_invalid_filename(monkeypatch, tmp_path):
 
 @pytest.mark.anyio
 async def test_ui_backup_create_handles_permission_error(monkeypatch):
-    monkeypatch.setattr("app.main.settings.backup_dir", "/data")
+    monkeypatch.setattr("app.routers.ui_backups.settings.backup_dir", "/data")
 
     def _raise_permission():
         raise HTTPException(
@@ -151,7 +151,9 @@ async def test_ui_backup_create_handles_permission_error(monkeypatch):
             ),
         )
 
-    monkeypatch.setattr("app.main.ensure_backup_dir_available", _raise_permission)
+    monkeypatch.setattr(
+        "app.routers.ui_backups.ensure_backup_dir_available", _raise_permission
+    )
 
     with pytest.raises(HTTPException) as exc:
         await ui_backups_create(filename="notificationhub-20260303-120000.tar.gz")

@@ -68,7 +68,7 @@ async def test_ingest_template_render_error_is_handled(db_session, monkeypatch):
         called["count"] += 1
         raise AssertionError("deliver() must not be called when rendering fails")
 
-    monkeypatch.setattr("app.main.deliver", _fake_deliver)
+    monkeypatch.setattr("app.routers.ingress_webhooks.deliver", _fake_deliver)
 
     payload = json.dumps(
         {
