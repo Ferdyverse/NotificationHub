@@ -64,32 +64,47 @@
   <!-- Existing Templates -->
   <section class="lg:col-span-2">
     <h2 class="mb-4">📋 Existing Templates</h2>
-    <div class="space-y-3">
-      {% for template in templates %}
-        <div class="card group">
-          <div class="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h3 class="group-hover:text-emerald-300 transition">{{ template.name }}</h3>
-            </div>
-            {% if template.is_default %}
-              <span class="badge badge-success">⭐ Default</span>
-            {% endif %}
-          </div>
-          <div class="button-group">
-            <a class="btn btn-secondary flex-1" href="/ui/templates/{{ template.id }}">✏️ Edit</a>
-            <form method="post" action="/ui/templates/{{ template.id }}/delete" class="flex-1" {% if template.is_default %}style="opacity: 0.5; pointer-events: none;"{% else %}onsubmit="return confirm('Delete this template? This cannot be undone.');"{% endif %}>
-              <button class="btn btn-danger btn-block" {% if template.is_default %}disabled{% endif %}>🗑️ Delete</button>
-            </form>
-          </div>
-        </div>
-      {% else %}
-        <div class="empty-state">
-          <div class="empty-state-icon">📝</div>
-          <div class="empty-state-title">No templates yet</div>
-          <div class="empty-state-text">Create a template to format notifications</div>
-        </div>
-      {% endfor %}
+    {% if templates %}
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Name</th>
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Status</th>
+            <th style="padding: 0.6rem 1rem;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for template in templates %}
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-weight: 600; font-size: 0.95rem;">{{ template.name }}</td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+              {% if template.is_default %}
+                <span class="badge badge-success" style="font-size: 0.72rem;">⭐ Default</span>
+              {% else %}
+                <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+              {% endif %}
+            </td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap; text-align: right;">
+              <div style="display: flex; gap: 0.4rem; align-items: center; justify-content: flex-end;">
+                <a class="btn btn-secondary" href="/ui/templates/{{ template.id }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">✏️</a>
+                <form method="post" action="/ui/templates/{{ template.id }}/delete" style="margin:0;" {% if template.is_default %}style="opacity: 0.5; pointer-events: none;"{% else %}onsubmit="return confirm('Delete this template? This cannot be undone.');"{% endif %}>
+                  <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" {% if template.is_default %}disabled{% endif %}>🗑️</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <div class="empty-state-title">No templates yet</div>
+        <div class="empty-state-text">Create a template to format notifications</div>
+      </div>
+    {% endif %}
   </section>
 </div>
 

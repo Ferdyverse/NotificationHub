@@ -3,9 +3,9 @@
 
 <div class="mb-8">
   <div class="breadcrumb mb-2">
-    <a href="/ui/routes">&#8592; Routes</a>
+    <a href="/ui/routes">&#8592; Destinations</a>
   </div>
-  <h1>Edit Route</h1>
+  <h1>Edit Destination</h1>
   <p>{{ route.name }} &middot; <code class="font-mono">{{ route.route_type | upper }}</code></p>
 </div>
 
@@ -31,11 +31,11 @@
     </div>
 
     <div class="form-group">
-      <label>Route Type</label>
+      <label>Destination Type</label>
       <select name="route_type" required data-route-type>
-        <option value="matrix" {% if route.route_type == "matrix" %}selected{% endif %}>Matrix</option>
         <option value="discord" {% if route.route_type == "discord" %}selected{% endif %}>Discord</option>
         <option value="email" {% if route.route_type == "email" %}selected{% endif %}>Email</option>
+        <option value="matrix" {% if route.route_type == "matrix" %}selected{% endif %}>Matrix</option>
         <option value="telegram" {% if route.route_type == "telegram" %}selected{% endif %}>Telegram</option>
       </select>
     </div>
@@ -49,10 +49,9 @@
         {% endfor %}
       </select>
     </div>
-
     <!-- Matrix Section -->
-    <div data-route-section="matrix">
-      <div class="card-header mb-4">
+    <div data-route-section="matrix" style="margin-top: 1.5rem;">
+      <div class="card-header mb-3">
         <h3 style="margin:0;">Matrix Configuration</h3>
       </div>
       <div class="space-y-3">
@@ -83,8 +82,8 @@
     </div>
 
     <!-- Discord Section -->
-    <div data-route-section="discord">
-      <div class="card-header mb-4">
+    <div data-route-section="discord" style="margin-top: 1.5rem;">
+      <div class="card-header mb-3">
         <h3 style="margin:0;">Discord Configuration</h3>
       </div>
       <div class="space-y-3">
@@ -105,8 +104,8 @@
     </div>
 
     <!-- Email Section -->
-    <div data-route-section="email">
-      <div class="card-header mb-4">
+    <div data-route-section="email" style="margin-top: 1.5rem;">
+      <div class="card-header mb-3">
         <h3 style="margin:0;">Email Configuration</h3>
       </div>
       <div class="space-y-3">
@@ -143,8 +142,8 @@
     </div>
 
     <!-- Telegram Section -->
-    <div data-route-section="telegram">
-      <div class="card-header mb-4">
+    <div data-route-section="telegram" style="margin-top: 1.5rem;">
+      <div class="card-header mb-3">
         <h3 style="margin:0;">Telegram Configuration</h3>
       </div>
       <div class="space-y-3">

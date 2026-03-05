@@ -39,7 +39,7 @@
           <input name="slug" value="{{ ingress.slug }}" required />
         </div>
         <div class="form-group">
-          <label>Routes <span class="text-muted">(fan-out)</span></label>
+          <label>Destinations <span class="text-muted">(fan-out)</span></label>
           <select name="route_ids" multiple style="height: 8rem;">
             {% for route in routes %}
               <option value="{{ route.id }}" {% if route in ingress.routes %}selected{% endif %}>{{ route.route_type | upper }} – {{ route.name }}</option>

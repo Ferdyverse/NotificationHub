@@ -82,7 +82,7 @@
     <p class="text-sm text-muted mb-4">Sends via the selected route using the most recent event log entry.</p>
     <form method="post" action="/ui/templates/{{ template.id }}/test-send" class="space-y-4">
       <div class="form-group">
-        <label>Route</label>
+        <label>Destination</label>
         <select name="route_id" required>
           {% for route in routes %}
             <option value="{{ route.id }}">{{ route.route_type | upper }} – {{ route.name }}</option>

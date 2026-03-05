@@ -3,8 +3,8 @@
 
 <!-- Header -->
 <div class="mb-8">
-  <h1>🛣️ Routes</h1>
-  <p>Delivery destinations for formatted notifications</p>
+  <h1>📤 Destinations</h1>
+  <p>Delivery targets for formatted notifications</p>
 </div>
 
 {% if error %}
@@ -25,19 +25,19 @@
   <!-- Create Form -->
   <section class="lg:col-span-1">
     <div class="sticky top-24 card">
-      <h2 class="mb-6">➕ New Route</h2>
+      <h2 class="mb-6">➕ New Destination</h2>
       <form method="post" action="/ui/routes" class="space-y-4">
         <div class="form-group">
-          <label>Route Name</label>
+          <label>Destination Name</label>
           <input name="name" placeholder="e.g., Discord Alerts" required />
         </div>
 
         <div class="form-group">
           <label>Delivery Type</label>
           <select name="route_type" required data-route-type>
-            <option value="matrix">Matrix</option>
             <option value="discord">Discord</option>
             <option value="email">Email</option>
+            <option value="matrix">Matrix</option>
             <option value="telegram">Telegram</option>
           </select>
         </div>
@@ -52,8 +52,9 @@
           </select>
         </div>
 
+        <hr data-route-section="matrix" style="display:none; border: none; border-top: 2px solid rgba(255,255,255,0.12); margin: 1.25rem 0;" />
         <!-- Matrix Section -->
-        <div class="card-header" data-route-section="matrix" style="display:none; border: none; padding: 0.5rem 0; margin: 0.5rem 0;">
+        <div class="card-header" data-route-section="matrix" style="display:none; border: none; padding: 0; margin: 0 0 0.75rem;">
           <h3 style="margin: 0;">Matrix Configuration</h3>
         </div>
         <div class="space-y-3" data-route-section="matrix" style="display:none;">
@@ -82,8 +83,9 @@
           </label>
         </div>
 
+        <hr data-route-section="discord" style="display:none; border: none; border-top: 2px solid rgba(255,255,255,0.12); margin: 1.25rem 0;" />
         <!-- Discord Section -->
-        <div class="card-header" data-route-section="discord" style="display:none; border: none; padding: 0.5rem 0; margin: 0.5rem 0;">
+        <div class="card-header" data-route-section="discord" style="display:none; border: none; padding: 0; margin: 0 0 0.75rem;">
           <h3 style="margin: 0;">Discord Configuration</h3>
         </div>
         <div class="space-y-3" data-route-section="discord" style="display:none;">
@@ -102,8 +104,9 @@
           </div>
         </div>
 
+        <hr data-route-section="email" style="display:none; border: none; border-top: 2px solid rgba(255,255,255,0.12); margin: 1.25rem 0;" />
         <!-- Email Section -->
-        <div class="card-header" data-route-section="email" style="display:none; border: none; padding: 0.5rem 0; margin: 0.5rem 0;">
+        <div class="card-header" data-route-section="email" style="display:none; border: none; padding: 0; margin: 0 0 0.75rem;">
           <h3 style="margin: 0;">Email Configuration</h3>
         </div>
         <div class="space-y-3" data-route-section="email" style="display:none;">
@@ -138,8 +141,9 @@
           </div>
         </div>
 
+        <hr data-route-section="telegram" style="display:none; border: none; border-top: 2px solid rgba(255,255,255,0.12); margin: 1.25rem 0;" />
         <!-- Telegram Section -->
-        <div class="card-header" data-route-section="telegram" style="display:none; border: none; padding: 0.5rem 0; margin: 0.5rem 0;">
+        <div class="card-header" data-route-section="telegram" style="display:none; border: none; padding: 0; margin: 0 0 0.75rem;">
           <h3 style="margin: 0;">Telegram Configuration</h3>
         </div>
         <div class="space-y-3" data-route-section="telegram" style="display:none;">
@@ -162,50 +166,62 @@
           </label>
         </div>
 
-        <button class="btn-primary btn-block">Create Route</button>
+        <button class="btn-primary btn-block">Create Destination</button>
       </form>
     </div>
   </section>
 
-  <!-- Existing Routes -->
+  <!-- Existing Destinations -->
   <section class="lg:col-span-2">
-    <h2 class="mb-4">📤 Existing Routes</h2>
-    <div class="space-y-3">
-      {% for route in routes %}
-        <div class="card group">
-          <div class="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h3 class="group-hover:text-emerald-300 transition">{{ route.name }}</h3>
-              <p class="text-sm font-mono">{{ route.route_type | upper }}</p>
-            </div>
-            <span class="badge {% if route.is_active %}badge-success{% else %}badge-slate{% endif %}">
-              {{ "🟢 Active" if route.is_active else "⚪ Inactive" }}
-            </span>
-          </div>
-          <div class="space-y-2 mb-4 pb-4 border-b border-slate-700/30">
-            <div>
-              <p class="section-title">Template</p>
-              <p class="text-sm">{{ route.template.name if route.template else "default" }}</p>
-            </div>
-          </div>
-          <div class="button-group">
-            <a class="btn btn-secondary flex-1" href="/ui/routes/{{ route.id }}">✏️ Edit</a>
-            <form method="post" action="/ui/routes/{{ route.id }}/toggle" class="flex-1">
-              <button class="btn {{ 'btn-amber' if route.is_active else 'btn-success' }} btn-block">{{ "⏸ Disable" if route.is_active else "▶ Enable" }}</button>
-            </form>
-            <form method="post" action="/ui/routes/{{ route.id }}/delete" class="flex-1" onsubmit="return confirm('Delete this route? This cannot be undone.');">
-              <button class="btn btn-danger btn-block">🗑️ Delete</button>
-            </form>
-          </div>
-        </div>
-      {% else %}
-        <div class="empty-state">
-          <div class="empty-state-icon">🛣️</div>
-          <div class="empty-state-title">No routes yet</div>
-          <div class="empty-state-text">Create a route to start delivering notifications</div>
-        </div>
-      {% endfor %}
+    <h2 class="mb-4">📤 Existing Destinations</h2>
+    {% if routes %}
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Name</th>
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Type</th>
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Template</th>
+            <th style="text-align:left; padding: 0.6rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Status</th>
+            <th style="padding: 0.6rem 1rem;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for route in routes %}
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-weight: 600; font-size: 0.95rem;">{{ route.name }}</td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+              <code style="font-size: 0.75rem; color: var(--text-muted); background: none; border: none; padding: 0;">{{ route.route_type | upper }}</code>
+            </td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; font-size: 0.85rem; color: var(--text-muted);">{{ route.template.name if route.template else "default" }}</td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+              <span class="badge {% if route.is_active %}badge-success{% else %}badge-slate{% endif %}" style="font-size: 0.72rem;">
+                {{ "🟢 Active" if route.is_active else "⚪ Inactive" }}
+              </span>
+            </td>
+            <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap; text-align: right;">
+              <div style="display: flex; gap: 0.4rem; align-items: center; justify-content: flex-end;">
+                <a class="btn btn-secondary" href="/ui/routes/{{ route.id }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">✏️</a>
+                <form method="post" action="/ui/routes/{{ route.id }}/toggle" style="margin:0;">
+                  <button class="btn {{ 'btn-amber' if route.is_active else 'btn-success' }}" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">{{ "⏸" if route.is_active else "▶" }}</button>
+                </form>
+                <form method="post" action="/ui/routes/{{ route.id }}/delete" style="margin:0;" onsubmit="return confirm('Delete this destination? This cannot be undone.');">
+                  <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">🗑️</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📤</div>
+        <div class="empty-state-title">No destinations yet</div>
+        <div class="empty-state-text">Create a destination to start delivering notifications</div>
+      </div>
+    {% endif %}
   </section>
 </div>
 
