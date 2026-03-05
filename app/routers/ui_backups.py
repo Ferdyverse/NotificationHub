@@ -3,6 +3,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
@@ -173,6 +175,15 @@ async def ui_backups_restore(filename: str):
         restore_backup(settings.database_url, backup_path, force=True)
     except (FileNotFoundError, ValueError, FileExistsError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        alembic_cfg = AlembicConfig("alembic.ini")
+        alembic_command.upgrade(alembic_cfg, "head")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backup restored but schema migration failed: {exc}",
+        ) from exc
     finally:
         engine.dispose()
 
