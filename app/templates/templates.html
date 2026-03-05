@@ -1,80 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Templates</h1>
+
+<!-- Header -->
+<div class="mb-8">
+  <h1>📝 Templates</h1>
+  <p>Create and manage message formatting templates</p>
+</div>
+
 {% if flash %}
-  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
-    {{ flash }}
+  <div class="alert alert-success mb-4">
+    <span class="alert-icon">✓</span>
+    <div>{{ flash }}</div>
   </div>
 {% endif %}
-<div class="grid md:grid-cols-2 gap-6">
-  <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
-    <h2 class="text-lg font-semibold mb-3">Create Template</h2>
-    <form method="post" action="/ui/templates" class="space-y-3">
-      <div>
-        <label class="block text-sm text-slate-300">Name</label>
-        <input name="name" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
-      </div>
-      <div>
-        <label class="block text-sm text-slate-300">Title Template</label>
-        <input name="title_template" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
-      </div>
-      <div>
-        <label class="block text-sm text-slate-300">Body</label>
-        <textarea name="body" rows="8" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required></textarea>
-      </div>
-      <div>
-        <label class="block text-sm text-slate-300">Discord Embed JSON Template (optional)</label>
-        <textarea
-          name="discord_embed_template"
-          rows="8"
-          class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono text-sm"
-          placeholder='{"embeds":[{"title":"{{ title }}","description":"{{ message }}","color":5793266}]}'
-        ></textarea>
-        <p class="text-xs text-slate-500 mt-1">
-          Rendered with Jinja context. Accepts full Discord webhook payload JSON, a single embed object, or an embeds array.
-        </p>
-      </div>
-      <label class="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" name="show_raw" value="true" />
-        Show raw payload
-      </label>
-      <label class="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" name="is_default" value="true" />
-        Set as default
-      </label>
-      <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Create</button>
-    </form>
+
+<div class="grid lg:grid-cols-3 gap-8">
+  <!-- Create Form -->
+  <section class="lg:col-span-1">
+    <div class="sticky top-24 card">
+      <h2>➕ New Template</h2>
+      <form method="post" action="/ui/templates" class="space-y-4">
+        <div class="form-group">
+          <label>Template Name</label>
+          <input name="name" placeholder="e.g., GitHub Notifications" required />
+        </div>
+
+        <div class="form-group">
+          <label>Title Template</label>
+          <input name="title_template" placeholder="{{ title }} | {{ severity }}" />
+        </div>
+
+        <div class="form-group">
+          <label>Body (Markdown)</label>
+          <textarea name="body" rows="6" placeholder="Event: {{ event }}&#10;Message: {{ message }}" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Discord Embed JSON <span class="text-muted">(optional)</span></label>
+          <textarea
+            name="discord_embed_template"
+            rows="4"
+            class="font-mono text-xs"
+            placeholder='{"embeds":[{"title":"{{ title }}"}]}'
+          ></textarea>
+          <p class="text-xs text-muted mt-2">Full Discord webhook JSON payload or single embed object.</p>
+        </div>
+
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="show_raw" value="true" />
+          <span>Show raw payload</span>
+        </label>
+
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="is_default" value="true" />
+          <span>Set as default template</span>
+        </label>
+
+        <button class="btn-primary btn-block">Create Template</button>
+      </form>
+    </div>
   </section>
-  <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
-    <h2 class="text-lg font-semibold mb-3">Existing</h2>
+
+  <!-- Existing Templates -->
+  <section class="lg:col-span-2">
+    <h2 class="mb-4">📋 Existing Templates</h2>
     <div class="space-y-3">
       {% for template in templates %}
-        <div class="border border-slate-800 rounded p-3">
-          <div class="flex justify-between items-center">
+        <div class="card group">
+          <div class="flex items-start justify-between gap-4 mb-3">
             <div>
-              <div class="font-semibold">{{ template.name }}</div>
-              <div class="text-xs text-slate-500">Default: {{ "yes" if template.is_default else "no" }}</div>
+              <h3 class="group-hover:text-emerald-300 transition">{{ template.name }}</h3>
             </div>
-            <div class="flex gap-2 items-center">
-              <a class="inline-flex items-center justify-center px-3 py-2 rounded border border-slate-700 text-emerald-300" href="/ui/templates/{{ template.id }}" aria-label="Edit">
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M13.586 3a2 2 0 0 1 2.828 0l.586.586a2 2 0 0 1 0 2.828l-8.5 8.5-3.5.586.586-3.5 8.5-8.5z"/>
-                </svg>
-              </a>
-              <form method="post" action="/ui/templates/{{ template.id }}/delete" onsubmit="return confirm('Delete this template?');">
-                <button class="px-3 py-2 rounded border border-rose-700 text-rose-200 inline-flex items-center justify-center" aria-label="Delete" {% if template.is_default %}disabled{% endif %}>
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path d="M6 7h8l-.7 9H6.7L6 7zM8 4h4l1 1H7l1-1z"/>
-                  </svg>
-                </button>
-              </form>
-            </div>
+            {% if template.is_default %}
+              <span class="badge badge-success">⭐ Default</span>
+            {% endif %}
+          </div>
+          <div class="button-group">
+            <a class="btn btn-secondary flex-1" href="/ui/templates/{{ template.id }}">✏️ Edit</a>
+            <form method="post" action="/ui/templates/{{ template.id }}/delete" class="flex-1" {% if template.is_default %}style="opacity: 0.5; pointer-events: none;"{% else %}onsubmit="return confirm('Delete this template? This cannot be undone.');"{% endif %}>
+              <button class="btn btn-danger btn-block" {% if template.is_default %}disabled{% endif %}>🗑️ Delete</button>
+            </form>
           </div>
         </div>
       {% else %}
-        <div class="text-slate-400">No templates yet.</div>
+        <div class="empty-state">
+          <div class="empty-state-icon">📝</div>
+          <div class="empty-state-title">No templates yet</div>
+          <div class="empty-state-text">Create a template to format notifications</div>
+        </div>
       {% endfor %}
     </div>
   </section>
 </div>
+
 {% endblock %}

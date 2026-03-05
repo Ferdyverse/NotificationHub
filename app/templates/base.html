@@ -5,21 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NotificationHub</title>
     <link rel="icon" href="/static/favicon.ico" />
+    <link rel="stylesheet" href="/static/style.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen">
-    <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap gap-3 items-center">
-        <div class="font-semibold">NotificationHub</div>
-        <a class="text-slate-300 hover:text-white" href="/ui/ingresses">Ingress</a>
-        <a class="text-slate-300 hover:text-white" href="/ui/routes">Routes</a>
-        <a class="text-slate-300 hover:text-white" href="/ui/templates">Templates</a>
-        <a class="text-slate-300 hover:text-white" href="/ui/events">Events</a>
-        <a class="text-slate-300 hover:text-white" href="/ui/backups">Backups</a>
+  <body>
+    <nav class="sticky top-0 z-50">
+      <div class="container flex flex-wrap items-center gap-6 py-4">
+        <a href="/" class="font-bold text-lg hover:text-emerald-400 transition">🔔 NotificationHub</a>
+        <div class="flex flex-wrap gap-6 ml-auto items-center text-sm">
+          <a href="/ui/ingresses" class="hover:text-emerald-400 transition">Ingresses</a>
+          <a href="/ui/routes" class="hover:text-emerald-400 transition">Routes</a>
+          <a href="/ui/templates" class="hover:text-emerald-400 transition">Templates</a>
+          <a href="/ui/events" class="hover:text-emerald-400 transition">Events</a>
+          <a href="/ui/backups" class="hover:text-emerald-400 transition">Backups</a>
+        </div>
       </div>
     </nav>
-    <main class="max-w-6xl mx-auto px-4 py-6">
+    <main class="container py-8">
       {% block content %}{% endblock %}
     </main>
     {% block scripts %}{% endblock %}

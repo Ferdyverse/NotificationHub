@@ -1,161 +1,188 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Event Log</h1>
-<form method="get" class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-4 grid md:grid-cols-6 gap-3">
-  <div class="md:col-span-2">
-    <label class="block text-sm text-slate-300">Search</label>
-    <input name="q" value="{{ filters.q }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" placeholder="title, message, source, event, raw..." />
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Source</label>
-    <input name="source" value="{{ filters.source }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" placeholder="github" />
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Event</label>
-    <input name="event" value="{{ filters.event }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" placeholder="push" />
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Severity</label>
-    <select name="severity" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
-      <option value="">All</option>
-      {% for item in severity_options %}
-        <option value="{{ item }}" {% if filters.severity == item %}selected{% endif %}>{{ item }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Status</label>
-    <select name="delivery_status" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
-      <option value="">All</option>
-      {% for status in delivery_status_options %}
-        <option value="{{ status }}" {% if filters.delivery_status == status %}selected{% endif %}>{{ status }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Ingress</label>
-    <select name="ingress_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2">
-      <option value="">All</option>
-      {% for ingress in ingresses %}
-        <option value="{{ ingress.id }}" {% if filters.ingress_id == ingress.id|string %}selected{% endif %}>{{ ingress.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="md:col-span-6 flex gap-2">
-    <input type="hidden" name="page" value="1" />
-    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Filter</button>
-    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/events">Reset</a>
+
+<!-- Header -->
+<div class="mb-8">
+  <h1>📊 Event Log</h1>
+  <p>Monitor all webhook ingestion events and delivery status</p>
+</div>
+
+<!-- Filters -->
+<form method="get" class="card mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+    <div class="lg:col-span-2">
+      <label>Search</label>
+      <input name="q" value="{{ filters.q }}" placeholder="title, message, source..." />
+    </div>
+    <div>
+      <label>Source</label>
+      <input name="source" value="{{ filters.source }}" placeholder="github" />
+    </div>
+    <div>
+      <label>Event</label>
+      <input name="event" value="{{ filters.event }}" placeholder="push" />
+    </div>
+    <div>
+      <label>Severity</label>
+      <select name="severity">
+        <option value="">All</option>
+        {% for item in severity_options %}
+          <option value="{{ item }}" {% if filters.severity == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Status</label>
+      <select name="delivery_status">
+        <option value="">All</option>
+        {% for status in delivery_status_options %}
+          <option value="{{ status }}" {% if filters.delivery_status == status %}selected{% endif %}>{{ status }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Ingress</label>
+      <select name="ingress_id">
+        <option value="">All</option>
+        {% for ingress in ingresses %}
+          <option value="{{ ingress.id }}" {% if filters.ingress_id == ingress.id|string %}selected{% endif %}>{{ ingress.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="lg:col-span-6 flex gap-2 items-end">
+      <button class="btn-primary">🔍 Filter</button>
+      <a href="/ui/events" class="btn btn-secondary">↺ Reset</a>
+    </div>
   </div>
 </form>
 
-<div class="flex items-center justify-between text-sm text-slate-400 mb-3">
-  <div>Showing {{ start_index }}-{{ end_index }} of {{ total }} events</div>
-  <div>Page {{ page }} / {{ total_pages }}</div>
+<!-- Pagination Info -->
+<div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 text-sm">
+  <div class="text-muted">Showing {{ start_index }}-{{ end_index }} of {{ total }} events</div>
+  <div class="text-muted">Page {{ page }} / {{ total_pages }}</div>
 </div>
 
-<div class="space-y-2">
+<!-- Events -->
+<div class="space-y-3">
   {% for log in logs %}
     {% set severity_icon = "ℹ️" %}
-    {% set severity_class = "text-slate-300 border-slate-600 bg-slate-800/50" %}
+    {% set severity_badge = "badge-info" %}
     {% if log.severity == "success" %}
       {% set severity_icon = "✅" %}
-      {% set severity_class = "text-emerald-300 border-emerald-700 bg-emerald-900/30" %}
+      {% set severity_badge = "badge-success" %}
     {% elif log.severity == "warning" %}
       {% set severity_icon = "⚠️" %}
-      {% set severity_class = "text-amber-300 border-amber-700 bg-amber-900/30" %}
+      {% set severity_badge = "badge-warning" %}
     {% elif log.severity == "error" %}
       {% set severity_icon = "❌" %}
-      {% set severity_class = "text-rose-300 border-rose-700 bg-rose-900/30" %}
+      {% set severity_badge = "badge-error" %}
     {% endif %}
 
-    {% set status_class = "text-slate-300 border-slate-600 bg-slate-800/50" %}
+    {% set status_badge = "badge-info" %}
     {% if log.delivery_status == "delivered" %}
-      {% set status_class = "text-emerald-300 border-emerald-700 bg-emerald-900/30" %}
+      {% set status_badge = "badge-success" %}
     {% elif log.delivery_status in ["failed", "rate_limited"] %}
-      {% set status_class = "text-rose-300 border-rose-700 bg-rose-900/30" %}
+      {% set status_badge = "badge-error" %}
     {% elif log.delivery_status in ["partial", "deduped"] %}
-      {% set status_class = "text-amber-300 border-amber-700 bg-amber-900/30" %}
+      {% set status_badge = "badge-warning" %}
     {% endif %}
 
-    <details class="bg-slate-900 border border-slate-800 rounded-lg group">
-      <summary class="list-none cursor-pointer p-4">
-        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          <div class="min-w-0">
-            <div class="font-semibold truncate">{{ log.title }}</div>
-            <div class="text-xs text-slate-500 mt-1">
-              {{ log.created_at }} • {{ log.ingress.name if log.ingress else "-" }}{% if log.ingress and log.ingress.slug %} ({{ log.ingress.slug }}){% endif %}
-            </div>
-            <div class="mt-2 text-sm text-slate-300 truncate">{{ log.message | replace('\n', ' ') | truncate(180, True, '...') }}</div>
+    <details class="card">
+      <summary>
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div class="flex-1 min-w-0">
+            <h3 class="truncate">{{ log.title }}</h3>
+            <p class="text-xs text-muted mt-1">
+              {{ log.created_at }} • {{ log.ingress.name if log.ingress else "-" }}
+              {%- if log.ingress and log.ingress.slug %} ({{ log.ingress.slug }}){% endif %}
+            </p>
+            <p class="text-sm mt-2 truncate">{{ log.message | replace('\n', ' ') | truncate(200, True, '...') }}</p>
           </div>
-          <div class="flex flex-col gap-2 text-xs md:items-end md:min-w-[22rem] md:flex-none">
-            <div class="flex flex-wrap items-center gap-2 md:justify-end">
-              <span class="px-2 py-1 rounded border {{ severity_class }}">{{ severity_icon }} {{ log.severity }}</span>
-              <span class="px-2 py-1 rounded border {{ status_class }}">{{ log.delivery_status }}</span>
+          <div class="flex flex-col gap-2 md:items-end md:flex-shrink-0">
+            <div class="flex flex-wrap gap-2 md:justify-end">
+              <span class="badge {{ severity_badge }}">{{ severity_icon }} {{ log.severity }}</span>
+              <span class="badge {{ status_badge }}">{{ log.delivery_status }}</span>
             </div>
-            <div class="flex flex-wrap items-center gap-2 md:justify-end">
-              <span class="max-w-full truncate px-2 py-1 rounded border border-slate-700 bg-slate-800/40">{{ log.source }} / {{ log.event }}</span>
-            </div>
+            <div class="text-xs text-muted font-mono">{{ log.source }} / {{ log.event }}</div>
           </div>
         </div>
       </summary>
-      <div class="px-4 pb-4 border-t border-slate-800 space-y-3">
-        <div>
-          <div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Message</div>
-          <div class="text-sm whitespace-pre-wrap">{{ log.message }}</div>
+
+      <div class="card-content mt-4 pt-4 border-t border-slate-700/30 space-y-4">
+        <div class="section">
+          <div class="section-title">Message</div>
+          <pre class="text-sm whitespace-pre-wrap break-words">{{ log.message }}</pre>
         </div>
+
         {% if log.tags %}
-          <div>
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Tags</div>
-            <div class="text-xs text-slate-300">{{ log.tags | join(", ") }}</div>
+          <div class="section">
+            <div class="section-title">Tags</div>
+            <div class="flex flex-wrap gap-2">
+              {% for tag in log.tags %}
+                <span class="badge badge-slate">{{ tag }}</span>
+              {% endfor %}
+            </div>
           </div>
         {% endif %}
+
         {% if log.entities %}
-          <div>
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Entities</div>
-            <pre class="text-xs bg-slate-950 border border-slate-800 rounded p-3 overflow-x-auto">{{ log.entities | tojson(indent=2) }}</pre>
+          <div class="section">
+            <div class="section-title">Entities</div>
+            <pre class="text-xs bg-slate-950 border border-slate-700 rounded p-3 overflow-x-auto">{{ log.entities | tojson(indent=2) }}</pre>
           </div>
         {% endif %}
+
         {% if log.raw is not none %}
-          <div>
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Raw Payload</div>
-            <pre class="text-xs bg-slate-950 border border-slate-800 rounded p-3 overflow-x-auto">{{ log.raw | tojson(indent=2) }}</pre>
+          <div class="section">
+            <div class="section-title">Raw Payload</div>
+            <pre class="text-xs bg-slate-950 border border-slate-700 rounded p-3 overflow-x-auto">{{ log.raw | tojson(indent=2) }}</pre>
           </div>
         {% endif %}
+
         {% if log.delivery_error %}
-          <div class="text-xs text-rose-300 bg-rose-900/20 border border-rose-800 rounded p-3">{{ log.delivery_error }}</div>
+          <div class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <pre class="text-xs">{{ log.delivery_error }}</pre>
+          </div>
         {% endif %}
       </div>
     </details>
   {% else %}
-    <div class="text-slate-400">No events logged.</div>
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-title">No events logged</div>
+      <div class="empty-state-text">Send a webhook to populate the event log</div>
+    </div>
   {% endfor %}
 </div>
 
-<div class="mt-4 flex items-center justify-between">
-  <div class="text-sm text-slate-500">Use filters to narrow down noisy ingress streams.</div>
-  <div class="flex items-center gap-2">
+<!-- Pagination -->
+<div class="mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+  <p class="text-sm text-muted">Use filters to narrow down noisy ingress streams</p>
+  <div class="flex gap-2">
     {% if has_prev %}
-      <form method="get">
+      <form method="get" class="inline">
         {% for key, value in filters.items() %}
           {% if value %}
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
           {% endif %}
         {% endfor %}
         <input type="hidden" name="page" value="{{ page - 1 }}" />
-        <button class="px-3 py-2 rounded border border-slate-700 text-sm">Previous</button>
+        <button class="btn btn-secondary">← Previous</button>
       </form>
     {% endif %}
     {% if has_next %}
-      <form method="get">
+      <form method="get" class="inline">
         {% for key, value in filters.items() %}
           {% if value %}
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
           {% endif %}
         {% endfor %}
         <input type="hidden" name="page" value="{{ page + 1 }}" />
-        <button class="px-3 py-2 rounded border border-slate-700 text-sm">Next</button>
+        <button class="btn btn-secondary">Next →</button>
       </form>
     {% endif %}
   </div>
 </div>
+
 {% endblock %}
