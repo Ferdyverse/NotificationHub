@@ -241,6 +241,31 @@ async def ui_templates_test_send(
 
 
 @router.post(
+    "/ui/templates/{template_id}/duplicate",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
+async def ui_templates_duplicate(
+    request: Request, template_id: int, db: Session = Depends(get_session)
+):
+    tmpl = db.get(Template, template_id)
+    if not tmpl:
+        raise HTTPException(status_code=404)
+    copy = Template(
+        name=f"{tmpl.name} (Copy)",
+        title_template=tmpl.title_template,
+        body=tmpl.body,
+        discord_embed_template=tmpl.discord_embed_template,
+        show_raw=tmpl.show_raw,
+        is_default=False,
+    )
+    db.add(copy)
+    db.commit()
+    request.session["flash"] = f"Duplicate of '{tmpl.name}' created."
+    return RedirectResponse("/ui/templates", status_code=303)
+
+
+@router.post(
     "/ui/templates/{template_id}/delete",
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],

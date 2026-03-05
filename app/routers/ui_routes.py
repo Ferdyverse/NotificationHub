@@ -246,6 +246,29 @@ async def ui_routes_update(
 
 
 @router.post(
+    "/ui/routes/{route_id}/duplicate",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_ui_basic_auth)],
+)
+async def ui_routes_duplicate(
+    request: Request, route_id: int, db: Session = Depends(get_session)
+):
+    route = db.get(Route, route_id)
+    if not route:
+        raise HTTPException(status_code=404)
+    copy = Route(
+        name=f"{route.name} (Copy)",
+        route_type=route.route_type,
+        config=dict(route.config) if route.config else {},
+        template_id=route.template_id,
+    )
+    db.add(copy)
+    db.commit()
+    request.session["flash"] = f"Duplicate of '{route.name}' created."
+    return RedirectResponse("/ui/routes", status_code=303)
+
+
+@router.post(
     "/ui/routes/{route_id}/toggle",
     response_class=HTMLResponse,
     dependencies=[Depends(require_ui_basic_auth)],
