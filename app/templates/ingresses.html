@@ -32,7 +32,7 @@
           <label>Routes <span class="text-muted">(optional)</span></label>
           <select name="route_ids" multiple style="height: 7rem;">
             {% for route in routes %}
-              <option value="{{ route.id }}">{{ route.name }}</option>
+              <option value="{{ route.id }}">{{ route.route_type | upper }} – {{ route.name }}</option>
             {% endfor %}
           </select>
           <p class="text-xs text-muted mt-2">Hold Ctrl/Cmd to select multiple.</p>

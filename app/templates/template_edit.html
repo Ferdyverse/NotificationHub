@@ -85,7 +85,7 @@
         <label>Route</label>
         <select name="route_id" required>
           {% for route in routes %}
-            <option value="{{ route.id }}">{{ route.name }}</option>
+            <option value="{{ route.id }}">{{ route.route_type | upper }} – {{ route.name }}</option>
           {% endfor %}
         </select>
       </div>
