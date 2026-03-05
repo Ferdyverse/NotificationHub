@@ -130,6 +130,7 @@ Prefer small, fast unit tests.
 
 `feat:` / `fix:` / `chore:` + short summary.
 Body: what changed, how to test, migration notes if any.
+Do NOT add `Co-Authored-By` trailers to commits.
 
 ## Environment variables
 
