@@ -31,7 +31,13 @@ from app.web_shared import (
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    logging.basicConfig(level=logging.INFO)
+    """Configure logging and initialize database defaults."""
+    # Setup structured logging with JSON-friendly format
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     db = SessionLocal()
     try:
         ensure_defaults(db)
