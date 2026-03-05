@@ -10,7 +10,7 @@ import markdown
 from app.config import settings
 from app.delivery.base import DeliveryResult, with_retries
 
-logger = logging.getLogger("formatter.matrix")
+logger = logging.getLogger("notificationhub.matrix")
 
 TOKEN_CACHE: dict[tuple[str, str], dict[str, float | str]] = {}
 DEFAULT_TOKEN_TTL_SECONDS = 1800
@@ -150,7 +150,16 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
 
     try:
         return with_retries(_send)
-    except Exception as exc:  # noqa: BLE001
+    except (httpx.HTTPError, RuntimeError) as exc:
+        logger.error(
+            "matrix_delivery_failed",
+            extra={
+                "homeserver": homeserver[:50] if homeserver else None,
+                "room_id": room_id[:50] if room_id else None,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
+        )
         result = DeliveryResult(False, "failed", str(exc))
         if issued_via_login and access_token and not bearer_token:
             result.meta = {
