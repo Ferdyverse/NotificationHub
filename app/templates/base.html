@@ -4,21 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NotificationHub</title>
-    <link rel="icon" href="/static/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="stylesheet" href="/static/style.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   </head>
   <body>
     <nav class="sticky top-0 z-50">
-      <div class="container flex flex-wrap items-center gap-6 py-4">
-        <a href="/" class="font-bold text-lg hover:text-emerald-400 transition">🔔 NotificationHub</a>
-        <div class="flex flex-wrap gap-6 ml-auto items-center text-sm">
-          <a href="/ui/ingresses" class="hover:text-emerald-400 transition">Ingresses</a>
-          <a href="/ui/routes" class="hover:text-emerald-400 transition">Routes</a>
-          <a href="/ui/templates" class="hover:text-emerald-400 transition">Templates</a>
-          <a href="/ui/events" class="hover:text-emerald-400 transition">Events</a>
-          <a href="/ui/backups" class="hover:text-emerald-400 transition">Backups</a>
+      <div class="container flex flex-wrap items-center gap-4 py-3">
+        <a href="/" class="nav-brand">&#128276; NotificationHub</a>
+        <div class="flex flex-wrap gap-1 ml-auto items-center text-sm">
+          <a href="/ui/ingresses" class="nav-link">Ingresses</a>
+          <a href="/ui/routes" class="nav-link">Routes</a>
+          <a href="/ui/templates" class="nav-link">Templates</a>
+          <a href="/ui/events" class="nav-link">Events</a>
+          <a href="/ui/backups" class="nav-link">Backups</a>
         </div>
       </div>
     </nav>
@@ -26,5 +26,15 @@
       {% block content %}{% endblock %}
     </main>
     {% block scripts %}{% endblock %}
+    <script>
+      // Highlight active nav link based on current path
+      var path = window.location.pathname;
+      document.querySelectorAll('nav a.nav-link').forEach(function(a) {
+        var href = a.getAttribute('href');
+        if (href && href !== '/' && path.startsWith(href)) {
+          a.classList.add('active');
+        }
+      });
+    </script>
   </body>
 </html>

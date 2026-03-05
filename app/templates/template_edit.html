@@ -1,78 +1,113 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Edit Template</h1>
+
+<div class="mb-8">
+  <div class="breadcrumb mb-2">
+    <a href="/ui/templates">&#8592; Templates</a>
+  </div>
+  <h1>Edit Template</h1>
+  <p>{{ template.name }}</p>
+</div>
+
 {% if error %}
-  <div class="mb-4 bg-rose-900/40 border border-rose-700 rounded-lg p-3 text-rose-200">
-    {{ error }}
+  <div class="alert alert-error mb-6">
+    <span class="alert-icon">&#10060;</span>
+    <div>{{ error }}</div>
   </div>
 {% endif %}
+
 {% if flash %}
-  <div class="mb-4 bg-emerald-900/40 border border-emerald-700 rounded-lg p-3 text-emerald-200">
-    {{ flash }}
+  <div class="alert alert-success mb-6">
+    <span class="alert-icon">&#10003;</span>
+    <div>{{ flash }}</div>
   </div>
 {% endif %}
-<form method="post" action="/ui/templates/{{ template.id }}" class="space-y-3 bg-slate-900 border border-slate-800 rounded-lg p-4">
-  <div>
-    <label class="block text-sm text-slate-300">Name</label>
-    <input name="name" value="{{ template.name }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+
+<!-- Main Edit Form -->
+<div class="card mb-6">
+  <h2>Template Content</h2>
+  <form method="post" action="/ui/templates/{{ template.id }}" class="space-y-4">
+    <div class="form-group">
+      <label>Name</label>
+      <input name="name" value="{{ template.name }}" required />
+    </div>
+
+    <div class="form-group">
+      <label>Title Template <span class="text-muted">(optional, Jinja2)</span></label>
+      <input name="title_template" value="{{ template.title_template or '' }}" placeholder="e.g., {{ '{{' }} title {{ '}}' }} | {{ '{{' }} severity {{ '}}' }}" />
+    </div>
+
+    <div class="form-group">
+      <label>Body <span class="text-muted">(Jinja2 / Markdown)</span></label>
+      <textarea name="body" rows="14" required>{{ template.body }}</textarea>
+    </div>
+
+    <details {% if template.discord_embed_template %}open{% endif %}>
+      <summary>Discord Embed JSON <span class="text-muted text-sm font-normal">(optional, Jinja2)</span></summary>
+      <div style="padding: 1rem 0 0 0;" class="form-group">
+        <textarea
+          name="discord_embed_template"
+          rows="8"
+          placeholder='{"embeds":[{"title":"...","description":"...","color":5793266}]}'
+        >{{ template.discord_embed_template or '' }}</textarea>
+        <p class="text-xs text-muted mt-2">
+          Full Discord webhook payload JSON, single embed object, or embeds array. Rendered with Jinja2.
+        </p>
+      </div>
+    </details>
+
+    <div class="space-y-3">
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="show_raw" value="true" {% if template.show_raw %}checked{% endif %} />
+        <span>Append raw payload to body</span>
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="is_default" value="true" {% if template.is_default %}checked{% endif %} />
+        <span>Set as default template</span>
+      </label>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-primary">Save Changes</button>
+      <a href="/ui/templates/{{ template.id }}/preview" class="btn btn-secondary">Preview</a>
+      <a href="/ui/templates" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<!-- Test Send & Sample -->
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="card">
+    <h2>Test Send</h2>
+    <p class="text-sm text-muted mb-4">Sends via the selected route using the most recent event log entry.</p>
+    <form method="post" action="/ui/templates/{{ template.id }}/test-send" class="space-y-4">
+      <div class="form-group">
+        <label>Route</label>
+        <select name="route_id" required>
+          {% for route in routes %}
+            <option value="{{ route.id }}">{{ route.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn-primary btn-block">Send Test</button>
+    </form>
   </div>
-  <div>
-    <label class="block text-sm text-slate-300">Title Template</label>
-    <input name="title_template" value="{{ template.title_template or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+
+  <div class="card">
+    <h2>Create Sample Event</h2>
+    <p class="text-sm text-muted mb-4">Adds a sample event to the log so you can use Preview and Test Send.</p>
+    <form method="post" action="/ui/templates/{{ template.id }}/sample" class="space-y-4">
+      <div class="form-group">
+        <label>Ingress</label>
+        <select name="ingress_id" required>
+          {% for ingress in ingresses %}
+            <option value="{{ ingress.id }}">{{ ingress.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-secondary btn-block">Create Sample</button>
+    </form>
   </div>
-  <div>
-    <label class="block text-sm text-slate-300">Body</label>
-    <textarea name="body" rows="12" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" required>{{ template.body }}</textarea>
-  </div>
-  <div>
-    <label class="block text-sm text-slate-300">Discord Embed JSON Template (optional)</label>
-    <textarea
-      name="discord_embed_template"
-      rows="12"
-      class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono text-sm"
-      placeholder='{"embeds":[{"title":"{{ title }}","description":"{{ message }}","color":5793266}]}'
-    >{{ template.discord_embed_template or '' }}</textarea>
-    <p class="text-xs text-slate-500 mt-1">
-      Rendered with Jinja context. Accepts full Discord webhook payload JSON, a single embed object, or an embeds array.
-    </p>
-  </div>
-  <label class="flex items-center gap-2 text-sm text-slate-300">
-    <input type="checkbox" name="show_raw" value="true" {% if template.show_raw %}checked{% endif %} />
-    Show raw payload
-  </label>
-  <label class="flex items-center gap-2 text-sm text-slate-300">
-    <input type="checkbox" name="is_default" value="true" {% if template.is_default %}checked{% endif %} />
-    Set as default
-  </label>
-  <div class="flex gap-3">
-    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Save</button>
-    <a class="px-4 py-2 rounded border border-slate-700" href="/ui/templates/{{ template.id }}/preview">Preview</a>
-  </div>
-</form>
-<form method="post" action="/ui/templates/{{ template.id }}/test-send" class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
-  <h2 class="text-lg font-semibold mb-2">Test Send</h2>
-  <div class="flex flex-wrap items-center gap-3">
-    <label class="text-sm text-slate-300">Route</label>
-    <select name="route_id" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required>
-      {% for route in routes %}
-        <option value="{{ route.id }}">{{ route.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Send</button>
-  </div>
-  <p class="text-xs text-slate-500 mt-2">Uses the most recent event log entry.</p>
-</form>
-<form method="post" action="/ui/templates/{{ template.id }}/sample" class="mt-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
-  <h2 class="text-lg font-semibold mb-2">Create Sample Event</h2>
-  <div class="flex flex-wrap items-center gap-3">
-    <label class="text-sm text-slate-300">Ingress</label>
-    <select name="ingress_id" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required>
-      {% for ingress in ingresses %}
-        <option value="{{ ingress.id }}">{{ ingress.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="bg-emerald-500 text-slate-900 px-4 py-2 rounded font-semibold">Create Sample</button>
-  </div>
-  <p class="text-xs text-slate-500 mt-2">Adds a sample event to the log for preview and test-send.</p>
-</form>
+</div>
+
 {% endblock %}

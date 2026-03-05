@@ -1,28 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Preview: {{ template.name }}</h1>
+
+<div class="mb-8">
+  <div class="breadcrumb mb-2">
+    <a href="/ui/templates/{{ template.id }}">&#8592; {{ template.name }}</a>
+  </div>
+  <h1>Preview</h1>
+  <p>{{ template.name }}</p>
+</div>
+
 {% if error %}
-  <div class="bg-rose-900/40 border border-rose-700 rounded-lg p-4 text-rose-200">
-    Template render error: {{ error }}
+  <div class="alert alert-error mb-6">
+    <span class="alert-icon">&#10060;</span>
+    <div><strong>Template render error:</strong> {{ error }}</div>
   </div>
 {% else %}
+
   {% if rendered_title %}
-    <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-3">
-      <div class="text-xs text-slate-400 mb-1">Rendered Title</div>
-      <div class="font-semibold">{{ rendered_title }}</div>
+    <div class="card mb-4">
+      <p class="section-title mb-2">Rendered Title</p>
+      <p class="font-semibold text-lg text-white">{{ rendered_title }}</p>
     </div>
   {% endif %}
+
   {% if rendered_discord_payload_json %}
-    <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-3">
-      <div class="text-xs text-slate-400 mb-1">Rendered Discord Payload JSON</div>
-      <pre class="whitespace-pre-wrap text-sm">{{ rendered_discord_payload_json }}</pre>
+    <div class="card mb-4">
+      <p class="section-title mb-2">Discord Embed Payload</p>
+      <pre>{{ rendered_discord_payload_json }}</pre>
     </div>
   {% endif %}
-  <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 whitespace-pre-wrap">
-    {{ rendered }}
+
+  <div class="card mb-6">
+    <p class="section-title mb-2">Rendered Body</p>
+    <pre class="whitespace-pre-wrap">{{ rendered }}</pre>
   </div>
+
 {% endif %}
-<div class="mt-4">
-  <a class="px-4 py-2 rounded border border-slate-700" href="/ui/templates/{{ template.id }}">Back</a>
+
+<div>
+  <a href="/ui/templates/{{ template.id }}" class="btn btn-secondary">&#8592; Back to Template</a>
 </div>
+
 {% endblock %}

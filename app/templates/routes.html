@@ -25,7 +25,7 @@
   <!-- Create Form -->
   <section class="lg:col-span-1">
     <div class="sticky top-24 card">
-      <h2>➕ New Route</h2>
+      <h2 class="mb-6">➕ New Route</h2>
       <form method="post" action="/ui/routes" class="space-y-4">
         <div class="form-group">
           <label>Route Name</label>
@@ -166,9 +166,7 @@
           <div class="button-group">
             <a class="btn btn-secondary flex-1" href="/ui/routes/{{ route.id }}">✏️ Edit</a>
             <form method="post" action="/ui/routes/{{ route.id }}/toggle" class="flex-1">
-              <button class="btn btn-secondary btn-block">
-                {{ "🔒 Lock" if route.is_active else "✅ Unlock" }}
-              </button>
+              <button class="btn {{ 'btn-amber' if route.is_active else 'btn-success' }} btn-block">{{ "⏸ Disable" if route.is_active else "▶ Enable" }}</button>
             </form>
             <form method="post" action="/ui/routes/{{ route.id }}/delete" class="flex-1" onsubmit="return confirm('Delete this route? This cannot be undone.');">
               <button class="btn btn-danger btn-block">🗑️ Delete</button>
