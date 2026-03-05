@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, cast, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -12,17 +12,21 @@ from app.web.state import DELIVERY_STATUS_OPTIONS, EVENT_SEVERITY_OPTIONS
 
 
 def enforce_event_log_limit(db: Session):
+    """Enforce max event log size by deleting oldest events.
+
+    Uses bulk SQL DELETE for better performance instead of ORM delete loop.
+    """
     max_events = settings.max_events
     if max_events <= 0:
         return
     total = db.scalar(select(func.count()).select_from(EventLog))
     if total and total > max_events:
         excess = total - max_events
-        rows = db.scalars(
-            select(EventLog).order_by(EventLog.created_at).limit(excess)
-        ).all()
-        for row in rows:
-            db.delete(row)
+        # Use SQL subquery to delete oldest events in bulk
+        # This is much more efficient than fetching and deleting in a loop
+        subquery = select(EventLog.id).order_by(EventLog.created_at).limit(excess)
+        stmt = delete(EventLog).where(EventLog.id.in_(subquery))
+        db.execute(stmt)
         db.commit()
 
 
