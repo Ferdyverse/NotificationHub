@@ -783,6 +783,14 @@ nav .nav-brand:hover {
     display: none;
   }
 
+  .list-card-item button,
+  .list-card-item .btn {
+    min-height: 2rem;
+    min-width: 2rem;
+    padding: 0.25rem 0.45rem !important;
+    font-size: 0.85rem !important;
+  }
+
   .button-group {
     flex-direction: column;
   }
