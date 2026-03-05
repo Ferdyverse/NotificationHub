@@ -12,9 +12,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python packages
+# Copy requirements and install Python packages into a relocatable prefix
 COPY requirements.txt /build/requirements.txt
-RUN pip install --no-cache-dir --user -r /build/requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r /build/requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.12-slim
@@ -24,11 +24,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Copy Python packages from builder stage
-COPY --from=builder /root/.local /root/.local
-
-# Update PATH to use local pip packages
-ENV PATH=/root/.local/bin:$PATH
+# Copy Python packages from builder stage into system prefix
+COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY . /app
