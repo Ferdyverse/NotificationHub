@@ -8,7 +8,7 @@ router = APIRouter()
 
 @router.get("/")
 async def root():
-    return RedirectResponse("/ui/ingresses")
+    return RedirectResponse("/ui/dashboard")
 
 
 @router.get("/favicon.ico")

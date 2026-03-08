@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-8">
+  <h1>🏠 Dashboard</h1>
+  <p>Overview of your NotificationHub activity</p>
+</div>
+
+<!-- Top stat cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="card text-center">
+    <div style="font-size:2rem;font-weight:700;color:var(--color-text-primary);">{{ total_events }}</div>
+    <div class="text-xs text-muted mt-1">Total Events</div>
+  </div>
+  <div class="card text-center">
+    <div style="font-size:2rem;font-weight:700;color:var(--color-text-primary);">{{ events_24h }}</div>
+    <div class="text-xs text-muted mt-1">Last 24 h</div>
+  </div>
+  <div class="card text-center">
+    <div style="font-size:2rem;font-weight:700;color:var(--color-text-primary);">{{ events_7d }}</div>
+    <div class="text-xs text-muted mt-1">Last 7 days</div>
+  </div>
+  <div class="card text-center">
+    <div style="font-size:2rem;font-weight:700;color:{% if success_rate >= 80 %}var(--color-success){% elif success_rate >= 50 %}var(--color-warning){% else %}var(--color-error){% endif %};">{{ success_rate }}%</div>
+    <div class="text-xs text-muted mt-1">Success Rate</div>
+  </div>
+</div>
+
+<!-- Infrastructure + Breakdowns -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+  <!-- Infrastructure -->
+  <div class="card">
+    <div class="card-header">Infrastructure</div>
+    <div class="card-content space-y-3 mt-3">
+      <div class="flex items-center justify-between">
+        <span class="text-sm">Ingresses</span>
+        <span class="text-sm font-mono">{{ active_ingresses }} / {{ total_ingresses }} active</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm">Destinations</span>
+        <span class="text-sm font-mono">{{ active_routes }} / {{ total_routes }} active</span>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <a href="/ui/ingresses" class="btn btn-secondary" style="flex:1;text-align:center;">Ingresses</a>
+        <a href="/ui/routes" class="btn btn-secondary" style="flex:1;text-align:center;">Destinations</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delivery status breakdown -->
+  <div class="card">
+    <div class="card-header">Delivery Status</div>
+    <div class="card-content space-y-2 mt-3">
+      {% set status_icons = {"delivered": ("✅", "badge-success"), "partial": ("⚠️", "badge-warning"), "failed": ("❌", "badge-error"), "rate_limited": ("🚫", "badge-error"), "deduped": ("♻️", "badge-warning"), "sample": ("🔬", "badge-info")} %}
+      {% if by_status %}
+        {% for status, count in by_status.items() | sort %}
+          {% set icon_class = status_icons.get(status, ("ℹ️", "badge-info")) %}
+          <div class="flex items-center justify-between">
+            <span class="badge {{ icon_class[1] }}">{{ icon_class[0] }} {{ status }}</span>
+            <span class="text-sm font-mono">{{ count }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted text-sm">No events yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Severity breakdown -->
+  <div class="card">
+    <div class="card-header">Severity</div>
+    <div class="card-content space-y-2 mt-3">
+      {% set sev_icons = {"success": ("✅", "badge-success"), "info": ("ℹ️", "badge-info"), "warning": ("⚠️", "badge-warning"), "error": ("❌", "badge-error")} %}
+      {% if by_severity %}
+        {% for sev, count in by_severity.items() | sort %}
+          {% set icon_class = sev_icons.get(sev, ("ℹ️", "badge-info")) %}
+          <div class="flex items-center justify-between">
+            <span class="badge {{ icon_class[1] }}">{{ icon_class[0] }} {{ sev }}</span>
+            <span class="text-sm font-mono">{{ count }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted text-sm">No events yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Recent events -->
+<div class="card">
+  <div class="card-header flex items-center justify-between">
+    <span>Recent Events</span>
+    <a href="/ui/events" class="btn btn-secondary" style="font-size:0.75rem;padding:0.25rem 0.75rem;">View all →</a>
+  </div>
+  <div class="card-content mt-3">
+    {% if recent_events %}
+      <div class="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th class="hidden md:table-cell">Source</th>
+              <th class="hidden md:table-cell">Ingress</th>
+              <th>Severity</th>
+              <th>Status</th>
+              <th class="hidden md:table-cell">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_events %}
+              {% set sev_icons = {"success": ("✅", "badge-success"), "info": ("ℹ️", "badge-info"), "warning": ("⚠️", "badge-warning"), "error": ("❌", "badge-error")} %}
+              {% set st_icons = {"delivered": "badge-success", "partial": "badge-warning", "failed": "badge-error", "rate_limited": "badge-error", "deduped": "badge-warning", "sample": "badge-info"} %}
+              {% set s = sev_icons.get(log.severity, ("ℹ️", "badge-info")) %}
+              <tr>
+                <td class="truncate" style="max-width:220px;">{{ log.title }}</td>
+                <td class="hidden md:table-cell text-xs font-mono">{{ log.source }}</td>
+                <td class="hidden md:table-cell text-xs">{{ log.ingress.name if log.ingress else "-" }}</td>
+                <td><span class="badge {{ s[1] }}">{{ s[0] }} {{ log.severity }}</span></td>
+                <td><span class="badge {{ st_icons.get(log.delivery_status, 'badge-info') }}">{{ log.delivery_status }}</span></td>
+                <td class="hidden md:table-cell text-xs text-muted">{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '-' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-title">No events yet</div>
+        <div class="empty-state-text">Send a webhook to an ingress to get started</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -18,6 +18,7 @@ from app.routers.ui_operations import (
     ui_backups_download,
     ui_backups_restore,
     ui_backups_upload,
+    ui_dashboard,
     ui_events,
 )
 from app.tools.backup import create_backup, restore_backup
@@ -60,6 +61,7 @@ __all__ = [
     "ingest",
     "favicon",
     "health",
+    "ui_dashboard",
     "ui_events",
     "ui_backups",
     "ui_backups_create",

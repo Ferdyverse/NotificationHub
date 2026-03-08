@@ -145,6 +145,18 @@
             <pre class="text-xs">{{ log.delivery_error }}</pre>
           </div>
         {% endif %}
+
+        <div class="flex items-center gap-3 mt-2">
+          <button
+            hx-post="/ui/events/{{ log.id }}/resend"
+            hx-target="#resend-result-{{ log.id }}"
+            hx-swap="innerHTML"
+            hx-indicator="#resend-spinner-{{ log.id }}"
+            class="btn btn-secondary"
+          >↺ Resend</button>
+          <span id="resend-spinner-{{ log.id }}" class="htmx-indicator text-xs text-muted">Sending…</span>
+          <div id="resend-result-{{ log.id }}"></div>
+        </div>
       </div>
     </details>
   {% else %}
