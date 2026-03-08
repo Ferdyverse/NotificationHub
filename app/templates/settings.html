@@ -1,11 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-6 flex items-center justify-between flex-wrap gap-3">
-  <div>
-    <h1>⚙️ Settings</h1>
-    <p class="text-sm text-muted">Changes take effect immediately — no restart needed.</p>
-  </div>
+<div class="mb-6">
+  <h1>⚙️ Settings</h1>
+  <p class="text-sm text-muted">Changes take effect immediately — no restart needed.</p>
 </div>
 
 {% if saved %}
@@ -27,11 +25,11 @@
     {% for group in groups_order %}
       {% set group_keys = schema.items() | selectattr("1.group", "equalto", group) | list %}
       {% if group_keys %}
-        <div class="section-title px-4 pt-4 pb-1 text-xs uppercase tracking-wide" style="color:var(--color-accent);">{{ group }}</div>
+        <div class="px-4 pt-4 pb-1 text-xs uppercase tracking-wide" style="color:var(--color-accent);">{{ group }}</div>
         {% for key, meta in group_keys %}
           {% set val = current[key] %}
-          <div class="flex items-center gap-4 px-4 py-2 border-b border-slate-800/50 hover:bg-slate-800/20" style="min-height:2.75rem;">
-            <label for="setting_{{ key }}" class="text-sm shrink-0" style="width:16rem;margin:0;">
+          <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 px-4 py-2 border-b border-slate-800/50">
+            <label for="setting_{{ key }}" class="text-sm md:shrink-0 md:w-56" style="margin:0;">
               {{ meta.label }}
               {% if key in stored %}<span title="DB override active" style="color:var(--color-accent-secondary);" class="ml-1">✎</span>{% endif %}
             </label>
@@ -43,7 +41,8 @@
               {% if meta.min is defined %}min="{{ meta.min }}"{% endif %}
               {% if meta.max is defined %}max="{{ meta.max }}"{% endif %}
               value="{{ val }}"
-              style="width:{% if meta.type in ('int','float') %}7rem{% else %}22rem{% endif %};margin:0;"
+              class="{% if meta.type in ('int','float') %}md:w-28{% else %}md:w-80{% endif %}"
+              style="margin:0;"
             />
             {% if meta.description %}
               <span class="text-xs text-muted hidden md:block">{{ meta.description }}</span>
@@ -66,9 +65,9 @@
   <div class="card-content mt-3">
     {% for key, label in readonly %}
       {% set raw = settings_get(key) %}
-      <div class="flex items-center gap-4 py-1 border-b border-slate-800/40 last:border-0">
-        <span class="text-sm shrink-0" style="width:16rem;">{{ label }}</span>
-        <span class="text-sm font-mono text-muted">
+      <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 py-2 border-b border-slate-800/40 last:border-0">
+        <span class="text-sm md:shrink-0 md:w-56">{{ label }}</span>
+        <span class="text-sm font-mono text-muted break-all">
           {% if key in ("session_secret", "ui_basic_auth_pass") %}••••••••
           {% elif raw %}{{ raw }}
           {% else %}<em>not set</em>{% endif %}
