@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.templating import Jinja2Templates
@@ -11,6 +12,7 @@ from app.config import settings
 from app.runtime import DedupeCache, RateLimiter
 
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["current_year"] = lambda: datetime.now(timezone.utc).year
 
 runtime_dedupe = DedupeCache(settings.default_dedupe_seconds)
 runtime_rate = RateLimiter(settings.default_rate_limit_per_min)
