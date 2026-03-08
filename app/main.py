@@ -24,6 +24,7 @@ from app.routers.ui_operations import (
 from app.tools.backup import create_backup, restore_backup
 from app.web_shared import (
     _authorize_ingress_request,
+    apply_runtime_config,
     ensure_backup_dir_available,
     ensure_defaults,
     resolve_template_id,
@@ -42,6 +43,7 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         ensure_defaults(db)
+        apply_runtime_config(db)
         yield
     finally:
         db.close()

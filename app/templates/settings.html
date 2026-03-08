@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-8">
+  <h1>⚙️ Settings</h1>
+  <p>Runtime configuration — changes take effect immediately without a restart.</p>
+</div>
+
+{% if saved %}
+  <div class="alert alert-success mb-6">
+    <span class="alert-icon">✅</span> Settings saved and applied.
+  </div>
+{% endif %}
+
+{% if errors %}
+  <div class="alert alert-error mb-6">
+    <span class="alert-icon">❌</span>
+    <ul class="mt-1 space-y-1 list-disc list-inside text-sm">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" action="/ui/settings">
+
+  {% for group in groups_order %}
+    {% set group_keys = schema.items() | selectattr("1.group", "equalto", group) | list %}
+    {% if group_keys %}
+      <div class="card mb-6">
+        <div class="card-header">{{ group }}</div>
+        <div class="card-content mt-4 space-y-5">
+          {% for key, meta in group_keys %}
+            {% set val = current[key] %}
+            <div>
+              <label for="setting_{{ key }}">
+                {{ meta.label }}
+                {% if meta.type == "int" %}
+                  <span class="text-xs text-muted ml-1">(integer)</span>
+                {% elif meta.type == "float" %}
+                  <span class="text-xs text-muted ml-1">(decimal)</span>
+                {% endif %}
+              </label>
+              <input
+                id="setting_{{ key }}"
+                name="{{ key }}"
+                type="{% if meta.type in ('int', 'float') %}number{% else %}text{% endif %}"
+                {% if meta.type == "float" %}step="0.1"{% endif %}
+                {% if meta.min is defined %}min="{{ meta.min }}"{% endif %}
+                {% if meta.max is defined %}max="{{ meta.max }}"{% endif %}
+                value="{{ val }}"
+                class="mt-1"
+              />
+              {% if meta.description %}
+                <p class="text-xs text-muted mt-1">{{ meta.description }}</p>
+              {% endif %}
+              {% if key in stored %}
+                <p class="text-xs mt-1" style="color:var(--color-accent-secondary);">
+                  ✎ Overriding env default
+                  {% if meta.type == "int" %}<code>{{ stored[key] | int }}</code>
+                  {% elif meta.type == "float" %}<code>{{ stored[key] | float }}</code>
+                  {% else %}<code>{{ stored[key] }}</code>
+                  {% endif %}
+                </p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <div class="flex gap-3 mb-8">
+    <button type="submit" class="btn btn-primary">💾 Save settings</button>
+    <a href="/ui/settings" class="btn btn-secondary">↺ Reset form</a>
+  </div>
+
+</form>
+
+<!-- Read-only environment info -->
+<div class="card">
+  <div class="card-header">Environment (read-only)</div>
+  <div class="card-content mt-4">
+    <p class="text-xs text-muted mb-4">
+      These values come from environment variables or the <code>.env</code> file and cannot be changed here.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Setting</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, label in readonly %}
+          {% set raw = settings_get(key) %}
+          <tr>
+            <td class="text-sm font-mono">{{ label }}</td>
+            <td class="text-sm font-mono">
+              {% if key in ("session_secret", "ui_basic_auth_pass") %}
+                <span class="text-muted">••••••••</span>
+              {% elif raw %}
+                {{ raw }}
+              {% else %}
+                <span class="text-muted italic">not set</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

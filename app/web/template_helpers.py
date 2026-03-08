@@ -10,8 +10,36 @@ from sqlalchemy.orm import Session
 
 from app.adapters.types import NormalizedEvent
 from app.config import settings
-from app.models import EventLog, Ingress, Route, Template
+from app.models import EventLog, Ingress, Route, RuntimeConfig, Template
 from app.render.templates import DEFAULT_TEMPLATE_BODY, render_template
+
+
+def apply_runtime_config(db: Session) -> None:
+    """Load persisted RuntimeConfig rows and apply them to the live settings object."""
+    from app.web.state import runtime_dedupe, runtime_rate
+
+    try:
+        rows = db.scalars(select(RuntimeConfig)).all()
+    except OperationalError:
+        return  # Table not yet created (pre-migration)
+    for row in rows:
+        key, raw_value = row.key, row.value
+        if not hasattr(settings, key):
+            continue
+        current = getattr(settings, key)
+        try:
+            if isinstance(current, bool):
+                setattr(settings, key, raw_value.lower() in ("1", "true", "yes"))
+            elif isinstance(current, int):
+                setattr(settings, key, int(raw_value))
+            elif isinstance(current, float):
+                setattr(settings, key, float(raw_value))
+            else:
+                setattr(settings, key, raw_value)
+        except (ValueError, TypeError):
+            pass
+    runtime_dedupe.window_seconds = settings.default_dedupe_seconds
+    runtime_rate.limit_per_min = settings.default_rate_limit_per_min
 
 
 def ensure_defaults(db: Session):

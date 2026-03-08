@@ -27,6 +27,7 @@ from app.web.state import (
     templates,
 )
 from app.web.template_helpers import (
+    apply_runtime_config,
     build_event_log,
     build_template_context,
     ensure_defaults,
@@ -37,6 +38,7 @@ from app.web.template_helpers import (
 )
 
 __all__ = [
+    "apply_runtime_config",
     "settings",
     "templates",
     "runtime_dedupe",

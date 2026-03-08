@@ -12,16 +12,20 @@ from app.routers.ui_backups import (
 )
 from app.routers.ui_dashboard import router as ui_dashboard_router, ui_dashboard
 from app.routers.ui_events import router as ui_events_router, ui_events
+from app.routers.ui_settings import router as ui_settings_router, ui_settings, ui_settings_save
 
 router = APIRouter()
 router.include_router(ui_dashboard_router)
 router.include_router(ui_events_router)
 router.include_router(ui_backups_router)
+router.include_router(ui_settings_router)
 
 __all__ = [
     "router",
     "ui_dashboard",
     "ui_events",
+    "ui_settings",
+    "ui_settings_save",
     "ui_backups",
     "ui_backups_create",
     "ui_backups_upload",

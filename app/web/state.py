@@ -13,6 +13,7 @@ from app.runtime import DedupeCache, RateLimiter
 
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["current_year"] = lambda: datetime.now(timezone.utc).year
+templates.env.globals["settings_get"] = lambda key: getattr(settings, key, None)
 
 runtime_dedupe = DedupeCache(settings.default_dedupe_seconds)
 runtime_rate = RateLimiter(settings.default_rate_limit_per_min)

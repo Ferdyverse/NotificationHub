@@ -111,3 +111,12 @@ class EventLog(Base):
     delivery_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     ingress = relationship("Ingress")
+
+
+class RuntimeConfig(Base):
+    __tablename__ = "runtime_config"
+    __allow_unmapped__ = True
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
