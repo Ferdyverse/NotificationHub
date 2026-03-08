@@ -16,6 +16,11 @@ async def favicon():
     return Response(status_code=204)
 
 
+@router.get("/.well-known/appspecific/com.chrome.devtools.json")
+async def chrome_devtools():
+    return Response(status_code=204)
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok"}
