@@ -125,6 +125,54 @@ def adapt(payload: Any, github_event: str | None) -> NormalizedEvent:
                 "pr_merged": merged,
             }
         )
+    elif event_name == "issues":
+        issue = (
+            payload.get("issue") if isinstance(payload.get("issue"), dict) else {}
+        )
+        number = issue.get("number")
+        issue_title = issue.get("title") or "issue"
+        state = issue.get("state") or "-"
+        state_reason = issue.get("state_reason")
+        issue_author = (
+            issue.get("user", {}).get("login") if isinstance(issue.get("user"), dict) else None
+        ) or actor_name
+        url = issue.get("html_url")
+        body = str(issue.get("body") or "").strip()
+        label_names = [
+            lbl.get("name") for lbl in issue.get("labels", []) if isinstance(lbl, dict)
+        ]
+        issue_action = str(action or "")
+        if issue_action == "opened":
+            severity = "info"
+        elif issue_action == "closed":
+            severity = "success" if state_reason != "not_planned" else "warning"
+        elif issue_action == "reopened":
+            severity = "warning"
+        else:
+            severity = "info"
+        title = f"Issue #{number}: {issue_title}" if number is not None else issue_title
+        message_parts = [
+            f"Repository: {repo_name}",
+            f"Action: {issue_action or '-'}",
+            f"State: {state}" + (f" ({state_reason})" if state_reason else ""),
+            f"Author: {issue_author}",
+        ]
+        if label_names:
+            message_parts.append(f"Labels: {', '.join(label_names)}")
+        message_parts.append(f"URL: {url or '-'}")
+        if body:
+            preview = body[:300] + ("…" if len(body) > 300 else "")
+            message_parts.append(f"\n{preview}")
+        message = "\n".join(message_parts)
+        entities.update(
+            {
+                "url": url,
+                "issue_number": number,
+                "issue_state": state,
+                "issue_author": issue_author,
+                "labels": label_names,
+            }
+        )
     elif event_name == "release":
         release = (
             payload.get("release") if isinstance(payload.get("release"), dict) else {}
