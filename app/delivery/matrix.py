@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 import time
 from urllib.parse import quote
@@ -116,9 +117,10 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
                 expires_in_ms,
             )
 
-        plain_body = f"{title}\n\n{body}"
+        plain_body = f"{title}\n\n{body}" if title else body
         if use_markdown:
-            html_body = markdown.markdown(plain_body, extensions=["extra"])
+            md_body = f"**{title}**\n\n{body}" if title else body
+            html_body = markdown.markdown(md_body, extensions=["extra"])
             content = {
                 "msgtype": "m.text",
                 "body": plain_body,
@@ -126,9 +128,12 @@ def deliver_matrix(config: dict, title: str, body: str) -> DeliveryResult:
                 "formatted_body": html_body,
             }
         else:
+            formatted = (f"<b>{html.escape(title)}</b>\n\n{html.escape(body)}" if title else html.escape(body))
             content = {
                 "msgtype": "m.text",
                 "body": plain_body,
+                "format": "org.matrix.custom.html",
+                "formatted_body": formatted,
             }
         send_url = f"{homeserver.rstrip('/')}/_matrix/client/r0/rooms/{room_id}/send/m.room.message"
         headers = {"Authorization": f"Bearer {access_token}"}

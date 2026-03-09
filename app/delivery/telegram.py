@@ -61,10 +61,9 @@ def _build_text(title: str, body: str, parse_mode: str | None) -> str:
         t = _escape_mdv2(title) if title else ""
         b = _headings_to_bold_mdv2(body)
         return f"*{t}*\n{b}" if t else b
-    # No parse_mode: use HTML just to bold the title, body stays plain
-    if title:
-        return f"<b>{html.escape(title)}</b>\n{html.escape(body)}"
-    return body
+    # No parse_mode: use HTML to bold the title and any headings in the body
+    t = f"<b>{html.escape(title)}</b>\n" if title else ""
+    return t + _headings_to_bold_html(body)
 
 
 def deliver_telegram(config: dict, title: str, body: str) -> DeliveryResult:
@@ -78,7 +77,7 @@ def deliver_telegram(config: dict, title: str, body: str) -> DeliveryResult:
 
     text = _build_text(title, body, parse_mode)
 
-    effective_parse_mode = parse_mode or ("HTML" if title else None)
+    effective_parse_mode = parse_mode or "HTML"
     payload: dict = {"chat_id": chat_id, "text": text}
     if effective_parse_mode:
         payload["parse_mode"] = effective_parse_mode
