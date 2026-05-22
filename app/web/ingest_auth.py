@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 
@@ -65,6 +66,16 @@ def _authorize_ingress_request(
         any_auth_present = True
         if verify_secret(bearer_token, ingress.secret_hash):
             any_auth_valid = True
+
+    if auth_header and auth_header.lower().startswith("basic "):
+        try:
+            decoded = base64.b64decode(auth_header.split(" ", 1)[1]).decode("utf-8")
+            _, password = decoded.split(":", 1)
+            any_auth_present = True
+            if verify_secret(password, ingress.secret_hash):
+                any_auth_valid = True
+        except Exception:
+            pass
 
     gitlab_token = request.headers.get("X-Gitlab-Token")
     if gitlab_token:

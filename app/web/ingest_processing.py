@@ -28,7 +28,12 @@ def adapt_request_payload(raw_body: bytes, content_type: str, request: Request):
             elif github_event:
                 event = github.adapt(payload, github_event)
             else:
-                event = generic_json.adapt(payload)
+                from app.adapters import apprise
+
+                if apprise.is_apprise_payload(payload):
+                    event = apprise.adapt(payload)
+                else:
+                    event = generic_json.adapt(payload)
         else:
             from app.adapters import generic_text
 
