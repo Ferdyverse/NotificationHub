@@ -13,6 +13,7 @@ def build_env(strict: bool = False) -> SandboxedEnvironment:
     undefined_cls = StrictUndefined if strict else Undefined
     env = SandboxedEnvironment(undefined=undefined_cls)
     env.globals["status_icon"] = lambda value: STATUS_ICONS.get(value, "ℹ️")
+    env.filters["split"] = lambda value, sep=None, maxsplit=-1: str(value).split(sep, maxsplit)
     return env
 
 
